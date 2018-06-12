@@ -15,6 +15,10 @@ import java.util.Objects;
 @javax.annotation.Generated(value = "io.swagger.codegen.languages.SpringCodegen", date = "2018-03-25T22:28:04.198-07:00")
 
 public class Forum   {
+
+  @JsonProperty("id")
+  private BigDecimal id = null;
+
   @JsonProperty("title")
   private String title = null;
 
@@ -33,6 +37,14 @@ public class Forum   {
   public Forum title(String title) {
     this.title = title;
     return this;
+  }
+
+  public BigDecimal getId() {
+    return id;
+  }
+
+  public void setId(BigDecimal id) {
+    this.id = id;
   }
 
    /**

@@ -1,6 +1,7 @@
 package com.example.demo;
 
-import com.dturan.Mapper.*;
+import com.dturan.Mapper.PostsMapper;
+import com.dturan.Mapper.ThreadsMapper;
 import com.dturan.api.ThreadApi;
 import com.dturan.model.Error;
 import com.dturan.model.*;
@@ -13,23 +14,34 @@ import org.flywaydb.core.internal.util.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
-import java.sql.Timestamp;
+import java.sql.*;
 import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api/thread/")
+@Repository
 public class ThreadApiImpl implements ThreadApi {
 
-    @Autowired
+    @NotNull
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    public ThreadApiImpl(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    private static final String SEARCH_THREAD_ID_BY_SLUG = "SELECT ID FROM THREADS WHERE slug_lower = ?";
 
     private static final String SEARCH_TRHEAD_BY_ID =
             "SELECT users.nickname as author,\n" +
@@ -55,7 +67,7 @@ public class ThreadApiImpl implements ThreadApi {
         "  threads.tittle, \n" +
         "  threads.votes \n" +
         "FROM forums, threads, users \n" +
-        "WHERE lower(threads.slug) = lower(?) AND\n" +
+        "WHERE threads.slug_lower = ? AND\n" +
         "  forums.id = threads.forum" +
         "  AND users.id = threads.author\n;";
 
@@ -74,23 +86,22 @@ public class ThreadApiImpl implements ThreadApi {
             "  forums.id = posts.forum AND\n" +
             "  posts.id = ?\n";
 
-    private static final String SEARCH_USER_ID_BY_NICKNAME = "SELECT ID FROM USERS WHERE lower(nickname) = lower(?);";
+    private static final String SEARCH_USER_ID_BY_NICKNAME = "SELECT ID FROM USERS WHERE nickname_lower = ?;";
     private static final String SEARCH_USER_BY_NICKNAME = "SELECT * FROM USERS WHERE lower(nickname) = lower(?);";
-    private static final String SEARCH_FORUM_ID_BY_SLUG = "SELECT ID FROM FORUMS WHERE lower(slug) = lower(?);";
-    private static final String SEARCH_FORUM_BY_SLUG = "SELECT * FROM FORUMS WHERE lower(slug) = lower(?);";
+    private static final String SEARCH_FORUM_ID_BY_SLUG = "SELECT ID FROM FORUMS WHERE slug_lower = ?;";
+    private static final String SEARCH_FORUM_BY_SLUG = "SELECT * FROM FORUMS WHERE lower(slug) = ?;";
     private static final String SEARCH_POST_PATH_AND_BRANCH_BY_POST_ID = "SELECT PATH, BRANCH FROM POSTS WHERE ID = ?";
     private static final String UPDATE_POST_PATH_AND_BRANCH_BY_POST_ID = "UPDATE POSTS SET PATH = ?, BRANCH = ? WHERE ID = ?";
     private static final String CREATE_POST_QUERY =
-        "INSERT INTO POSTS (parent, author, thread, forum, message, created)\n" +
-        "VALUES (?, ?, ?, ?, ?, ?) returning id;";
+        "INSERT INTO POSTS (id, parent, author, thread, forum, message, created, path, branch)\n" +
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id;";
     private static final String SEARCH_POST_ID_BY_AUTHOR_AND_THREAD_AND_MESSAGE =
         "SELECT ID FROM POSTS WHERE author = ? and thread = ? AND message = ?";
-    private static final String SEARCH_VOTE_BY_THREAD_ID_AND_NICKNAME =
-        "SELECT votes.id, votes.thread, votes.vote_maker, votes.voice \n" +
-        "FROM votes, users \n" +
-        "WHERE votes.thread = ? AND \n" +
-        "lower(users.nickname) = lower(?) AND\n" +
-        "users.id = votes.vote_maker";
+    private static final String SEARCH_VOTE_BY_THREAD_ID_AND_USER_ID =
+        "SELECT id, thread, vote_maker, voice \n" +
+        "FROM votes\n" +
+        "WHERE thread = ? AND \n" +
+        "vote_maker = ?";
     private static final String UPDATE_VOTE_BY_ID =
         "UPDATE votes SET voice = ? WHERE id = ?";
     private static final String CRATE_VOTE_BY_THREAD_AND_USER_ID =
@@ -103,7 +114,7 @@ public class ThreadApiImpl implements ThreadApi {
     private static final String UPDATE_THREAD =
             "UPDATE threads SET tittle = ?, message = ? WHERE id = ?";
     private static final String UPDATE_FORUM_POSTS_COUNTER =
-            "UPDATE forums SET posts = ? WHERE lower(slug) = lower(?)";
+            "UPDATE forums SET posts = posts + ? WHERE id = ?";
 
     @Override
     @ApiOperation(value = "Создание новых постов", notes = "Добавление новых постов в ветку обсуждения на форум. Все посты, созданные в рамках одного вызова данного метода должны иметь одинаковую дату создания (Post.Created). ", response = Posts.class, tags={  })
@@ -117,22 +128,84 @@ public class ThreadApiImpl implements ThreadApi {
         method = RequestMethod.POST)
     public ResponseEntity<?> postsCreate(@ApiParam(value = "Идентификатор ветки обсуждения.",required=true ) @PathVariable("slugOrId") String slugOrId,
     @ApiParam(value = "Список создаваемых постов." ,required=true ) @RequestBody Posts posts) {
-        Thread thread = null;
         DateTime now = DateTime.now().toDateTime(DateTimeZone.UTC);
+        if (posts.isEmpty()) {
+            return new ResponseEntity<>(posts, HttpStatus.CREATED);
+        }
+        Thread thread = null;
         try {
             thread = this.searchThreadByIdOrSlug(slugOrId);
-        } catch (Exception e) {
+        } catch (Exception e5) {
             return new ResponseEntity<>(new Error("Ветка обсуждения отсутствует в базе данных."), HttpStatus.NOT_FOUND);
         }
+        BigDecimal forumResult = jdbcTemplate.queryForObject(SEARCH_FORUM_ID_BY_SLUG,BigDecimal.class,thread.getForum().toLowerCase());
+        Connection conn = null;
+        CallableStatement createPost = null;
+        try {
+            conn = jdbcTemplate.getDataSource().getConnection();
+            conn.setAutoCommit(false);
+            try {
+                createPost = conn.prepareCall("select create_post(?, ?, ?, ?, ?, ?, ?)");
+                for (int i = 0; i < posts.size(); ++i) {
+                    Post post = posts.get(i);
+                    post.setThread(thread.getId());
+                    post.setForum(thread.getForum());
+                    if (post.getCreated() == null) {
+                        post.setCreated(now);
+                    }
+                    BigDecimal author = null;
+                    try {
+                        author = jdbcTemplate.queryForObject(SEARCH_USER_ID_BY_NICKNAME, BigDecimal.class, post.getAuthor().toLowerCase());
+                    } catch (Exception e) {
+                        return new ResponseEntity<>(new Error("Can't find post author by nickname: " + post.getAuthor()), HttpStatus.NOT_FOUND);
+                    }
+                    BigDecimal postId = jdbcTemplate.queryForObject("SELECT nextval('posts_id_seq')", BigDecimal.class);
+                    post.setId(postId);
+                    createPost.setBigDecimal(1, postId);
+                    if (post.getParent() != null) {
+                        createPost.setBigDecimal(2, post.getParent());
+                    } else {
+                        createPost.setNull(2, Types.NUMERIC);
+                    }
+                    createPost.setBigDecimal(3, author);
+                    createPost.setBigDecimal(4, post.getThread());
+                    createPost.setBigDecimal(5, forumResult);
+                    createPost.setString(6, post.getMessage());
+                    createPost.setTimestamp(7, new Timestamp(new DateTime(post.getCreated()).getMillis()));
+                    createPost.addBatch();
+                    posts.set(i, post);
+                }
+                createPost.executeBatch();
+                conn.commit();
+            } catch (Exception ex) {
+                conn.rollback();
+                throw new DataRetrievalFailureException(ex.getLocalizedMessage());
+            }
+            finally {
+                if (createPost != null)
+                    createPost.close();
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException ex) {
+            throw new DataRetrievalFailureException(ex.getLocalizedMessage());
+        }  finally {
+            try {
+                if (conn != null)
+                    conn.close();
+            }
+            catch (Exception ex2)
+            {
+                throw new DataRetrievalFailureException(ex2.getLocalizedMessage());
+            }
+        }
 
+        /*ArrayList<BigDecimal> authors = new ArrayList<BigDecimal>();
         if (thread == null)
             return new ResponseEntity<>(new Error("Ветка обсуждения отсутствует в базе данных."), HttpStatus.NOT_FOUND);
-        BigDecimal forum = jdbcTemplate.queryForObject(SEARCH_FORUM_ID_BY_SLUG, BigDecimal.class, thread.getForum());
-        Forum forumResult = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[]{thread.getForum()}, new ForumMapper());
         for (int i = 0; i < posts.size(); ++i) {
             Post post = posts.get(i);
+            Post parent = null;
             if (post.getParent() != null) {
-                Post parent = null;
                 try {
                     parent = jdbcTemplate.queryForObject(SEARCH_PARENT_POST, new Object[] {post.getParent() }, new PostsMapper());
                 } catch (Exception e) {
@@ -152,32 +225,15 @@ public class ThreadApiImpl implements ThreadApi {
             }
             BigDecimal author = null;
             try {
-                author = jdbcTemplate.queryForObject(SEARCH_USER_ID_BY_NICKNAME, BigDecimal.class, post.getAuthor());
+                author = jdbcTemplate.queryForObject(SEARCH_USER_ID_BY_NICKNAME, BigDecimal.class, post.getAuthor().toLowerCase());
+                authors.add(author);
             } catch (Exception e) {
                 return new ResponseEntity<>(new Error("Can't find post author by nickname: " + post.getAuthor()), HttpStatus.NOT_FOUND);
             }
-            BigDecimal postId = jdbcTemplate.queryForObject(CREATE_POST_QUERY, BigDecimal.class, post.getParent(), author, post.getThread(), forum, post.getMessage(), new Timestamp(new DateTime(post.getCreated()).getMillis()));
-            post.setId(postId);
-            PostPathBranch parentPathBranch = new PostPathBranch();
-            String path = "";
-            try {
-                parentPathBranch = jdbcTemplate.queryForObject(SEARCH_POST_PATH_AND_BRANCH_BY_POST_ID, new Object[]{ post.getParent() }, new PostPathBranchMapper());
-            } catch (Exception e1) {
-                try {
-                    BigDecimal branch = jdbcTemplate.queryForObject(GET_LAST_POSTS_TREE_BRANCH, BigDecimal.class).add(new BigDecimal(1));
-                    parentPathBranch.setBranch(branch);
-                } catch (Exception e2) {
-                    parentPathBranch.setBranch(new BigDecimal(1));
-                }
-            }
-            if (parentPathBranch.getPath() != null) {
-                path += parentPathBranch.getPath();
-            }
-            path += postId.toString();
-            jdbcTemplate.update(UPDATE_POST_PATH_AND_BRANCH_BY_POST_ID, path, parentPathBranch.getBranch(), postId);
             posts.set(i, post);
-        }
-        jdbcTemplate.update(UPDATE_FORUM_POSTS_COUNTER, forumResult.getPosts().add(new BigDecimal(posts.size())), forumResult.getSlug());
+        }*/
+
+        jdbcTemplate.update(UPDATE_FORUM_POSTS_COUNTER, new BigDecimal(posts.size()), forumResult);
         return new ResponseEntity<>(posts, HttpStatus.CREATED);
     }
 
@@ -195,7 +251,7 @@ public class ThreadApiImpl implements ThreadApi {
         try {
             thread = this.searchThreadByIdOrSlug(slugOrId);
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(new Error("Ветка обсуждения отсутсвует в форуме."), HttpStatus.NOT_FOUND);
         }
 
@@ -222,7 +278,7 @@ public class ThreadApiImpl implements ThreadApi {
         try {
             thread = this.searchThreadByIdOrSlug(slugOrId);
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(new Error("Ветка обсуждения отсутствует в форуме."), HttpStatus.NOT_FOUND);
         }
         if (since == null) {
@@ -261,7 +317,7 @@ public class ThreadApiImpl implements ThreadApi {
         try {
             new_thread = this.searchThreadByIdOrSlug(slugOrId);
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(new Error("Ветка обсуждения отсутсвует в форуме."), HttpStatus.NOT_FOUND);
         }
         if (thread.getTitle() != null) {
@@ -286,40 +342,69 @@ public class ThreadApiImpl implements ThreadApi {
     public ResponseEntity<?> threadVote(@ApiParam(value = "Идентификатор ветки обсуждения.",required=true ) @PathVariable("slugOrId") String slugOrId,
         @ApiParam(value = "Информация о голосовании пользователя." ,required=true ) @RequestBody Vote vote) {
 
-        Thread thread = null;
+        BigDecimal threadId = null;
         try {
-            thread = this.searchThreadByIdOrSlug(slugOrId);
+            threadId = searchThreadIdByIdOrSlug(slugOrId);
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(new Error("Ветка обсуждения отсутствует в базе данных."), HttpStatus.NOT_FOUND);
         }
+        BigDecimal user_id = null;
         try {
-            jdbcTemplate.queryForObject(SEARCH_USER_ID_BY_NICKNAME, BigDecimal.class, vote.getNickname());
+            user_id = jdbcTemplate.queryForObject(SEARCH_USER_ID_BY_NICKNAME, BigDecimal.class, vote.getNickname().toLowerCase());
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(new Error("\"Can't find user by nickname: " + vote.getNickname()), HttpStatus.NOT_FOUND);
         }
-        BigDecimal old_value = new BigDecimal(0);
+        Connection conn = null;
+        CallableStatement callableStatement = null;
         try {
-            Vote old_vote = jdbcTemplate.queryForObject(SEARCH_VOTE_BY_THREAD_ID_AND_NICKNAME, new Object[] {thread.getId(), vote.getNickname()}, new VoteMapper());
+            conn = jdbcTemplate.getDataSource().getConnection();
+            conn.setAutoCommit(false);
+            try {
+                callableStatement = conn.prepareCall("select create_or_update_vote(?, ?, ?)");
+                callableStatement.setInt(1, user_id.intValue());
+                callableStatement.setInt(2, threadId.intValue());
+                callableStatement.setInt(3, vote.getVoice().intValue());
+                callableStatement.execute();
+                conn.setAutoCommit(true);
+            } catch (SQLException sEx) {
+                conn.rollback();
+                throw new DataRetrievalFailureException(sEx.getLocalizedMessage());
+            } finally {
+                if (callableStatement != null)
+                    callableStatement.close();
+                conn.setAutoCommit(true);
+            }
+            //jdbcTemplate.update("select create_or_update_vote(?, ?, ?)", user_id.intValue(), threadId.intValue(), vote.getVoice().intValue());
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (conn != null)
+                    conn.close();
+            } catch (Exception e) {
+                throw new DataRetrievalFailureException(e.getLocalizedMessage());
+            }
+        }
+        /*BigDecimal old_value = new BigDecimal(0);
+        Vote old_vote = null;
+        try {
+            old_vote = jdbcTemplate.queryForObject(SEARCH_VOTE_BY_THREAD_ID_AND_USER_ID, new Object[] {threadId, user_id}, new VoteMapper());
             old_value = old_vote.getVoice();
             jdbcTemplate.update(UPDATE_VOTE_BY_ID, vote.getVoice(), old_vote.getId());
+        } catch (EmptyResultDataAccessException e1) {
+            jdbcTemplate.update(CRATE_VOTE_BY_THREAD_AND_USER_ID, threadId, user_id, vote.getVoice());
         } catch (Exception e) {
-            BigDecimal user_id = jdbcTemplate.queryForObject(SEARCH_USER_ID_BY_NICKNAME, BigDecimal.class, vote.getNickname());
-            jdbcTemplate.update(CRATE_VOTE_BY_THREAD_AND_USER_ID, thread.getId(), user_id, vote.getVoice());
             e.printStackTrace();
         }
-        if (old_value == new BigDecimal(0)) {
-            BigDecimal newVotes = thread.getVotes().add(vote.getVoice());
-            jdbcTemplate.update(UPDATE_THREAD_VOTE_BY_THREAD_ID, newVotes, thread.getId());
-            thread.setVotes(newVotes);
-            return new ResponseEntity<>(thread, HttpStatus.OK);
-        } else if (old_value != vote.getVoice()) {
+        if (old_value != vote.getVoice()) {
             BigDecimal newVotes = thread.getVotes().add(vote.getVoice().subtract(old_value));
             jdbcTemplate.update(UPDATE_THREAD_VOTE_BY_THREAD_ID, newVotes, thread.getId());
             thread.setVotes(newVotes);
             return new ResponseEntity<>(thread, HttpStatus.OK);
-        }
+        }*/
+        Thread thread = jdbcTemplate.queryForObject(SEARCH_TRHEAD_BY_ID, new Object[] {threadId}, new ThreadsMapper());
         return new ResponseEntity<>(thread, HttpStatus.OK);
     }
 
@@ -328,8 +413,15 @@ public class ThreadApiImpl implements ThreadApi {
         if (StringUtils.isNumeric(slugOrId))
             thread = jdbcTemplate.queryForObject(SEARCH_TRHEAD_BY_ID, new Object[] {new BigDecimal(slugOrId)}, new ThreadsMapper());
         else
-            thread = jdbcTemplate.queryForObject(SEARCH_TRHEAD_BY_SLUG, new Object[] {slugOrId}, new ThreadsMapper());
+            thread = jdbcTemplate.queryForObject(SEARCH_TRHEAD_BY_SLUG, new Object[] {slugOrId.toLowerCase()}, new ThreadsMapper());
         return thread;
+    }
+
+    private BigDecimal searchThreadIdByIdOrSlug(String slugOrId) {
+        if (StringUtils.isNumeric(slugOrId))
+            return new BigDecimal(slugOrId);
+        else
+            return jdbcTemplate.queryForObject(SEARCH_THREAD_ID_BY_SLUG, BigDecimal.class, slugOrId.toLowerCase());
     }
 
     private String postsSearchQuery(BigDecimal limit,  BigDecimal since,  boolean desc, Thread thread) {

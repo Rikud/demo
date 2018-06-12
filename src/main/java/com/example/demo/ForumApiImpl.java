@@ -32,9 +32,9 @@ public class ForumApiImpl implements ForumApi {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    private static final String CREATE_FORUM_QUERY = "INSERT INTO FORUMS (tittle, slug, user_id) VALUES(?, ?, ?)";
-    private static final String SEARCH_USER_BY_NICKNAME_QUERY = "SELECT * FROM USERS WHERE lower(nickname) = lower(?)";
-    private static final String SEARCH_FORIM_ID_BY_SLUG  = "SELECT ID FROM forums WHERE lower(slug) = lower(?)";
+    private static final String CREATE_FORUM_QUERY = "INSERT INTO FORUMS (tittle, slug, slug_lower, user_id) VALUES(?, ?, ?, ?)";
+    private static final String SEARCH_USER_BY_NICKNAME_QUERY = "SELECT * FROM USERS WHERE nickname_lower = ?";
+    private static final String SEARCH_FORIM_ID_BY_SLUG  = "SELECT ID FROM forums WHERE slug_lower = ?";
     private static final String SEARCH_FORUM_BY_SLUG = "SELECT * FROM FORUMS WHERE lower(SLUG) = lower(?)";
     private static final String SEARCH_USER_NICKNAME_BY_ID_QUERY = "SELECT nickname FROM USERS WHERE id = ?";
     private static final String SEARCH_FORUM_THREADS =
@@ -201,8 +201,8 @@ public class ForumApiImpl implements ForumApi {
             "      AND users.id =  threads.author;";
 
     private static final String CREATE_THREAD_QUERY =
-            "INSERT INTO THREADS (tittle, author, forum, message, slug, created, votes)\n" +
-            "VALUES (?, ?, ?, ?, ?, ?, 0) returning id;";
+            "INSERT INTO THREADS (tittle, author, forum, message, slug, slug_lower, created, votes)\n" +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 0) returning id;";
 
     private static final String SEARCH_TRHEAD_BY_SLUGS =
             "SELECT users.nickname as author,\n" +
@@ -214,7 +214,7 @@ public class ForumApiImpl implements ForumApi {
             "  threads.tittle,\n" +
             "  threads.votes\n" +
             "FROM forums, threads, users\n" +
-            "WHERE lower(threads.slug) = lower(?)\n" +
+            "WHERE threads.slug_lower = ?\n" +
             "      AND forums.id = threads.forum\n" +
             "      AND users.id =  threads.author;";
 
@@ -238,22 +238,22 @@ public class ForumApiImpl implements ForumApi {
             forumSearchResult.setUser(jdbcTemplate.queryForObject(SEARCH_USER_NICKNAME_BY_ID_QUERY, String.class, Long.parseLong(forumSearchResult.getUser())));
         }
         catch (Exception e) {
-            e.printStackTrace();
+            ////e.printStackTrace();
         }
         if (forumSearchResult != null) {
             return new ResponseEntity<>(forumSearchResult, HttpStatus.CONFLICT);
         }
         User user = null;
         try {
-            user = jdbcTemplate.queryForObject(SEARCH_USER_BY_NICKNAME_QUERY, new Object[] {forum.getUser()}, new UsersMapper());
+            user = jdbcTemplate.queryForObject(SEARCH_USER_BY_NICKNAME_QUERY, new Object[] {forum.getUser().toLowerCase()}, new UsersMapper());
         }
         catch (Exception e) {
-            e.printStackTrace();
+            ////e.printStackTrace();
             return new ResponseEntity<>(new Error("Владелец форума не найден."), HttpStatus.NOT_FOUND);
         }
         int result = 0;
         if (user != null)
-            result = jdbcTemplate.update(CREATE_FORUM_QUERY, forum.getTitle(), forum.getSlug(), user.getId());
+            result = jdbcTemplate.update(CREATE_FORUM_QUERY, forum.getTitle(), forum.getSlug(), forum.getSlug().toLowerCase(), user.getId());
         forum.setUser(user.getNickname());
         return new ResponseEntity<>(forum, HttpStatus.CREATED);
     }
@@ -273,7 +273,7 @@ public class ForumApiImpl implements ForumApi {
             forumSearchResult.setUser(jdbcTemplate.queryForObject(SEARCH_USER_NICKNAME_BY_ID_QUERY, String.class, Long.parseLong(forumSearchResult.getUser())));
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             Error error = new Error();
             error.setMessage("Форум отсутсвует в системе.");
             return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
@@ -319,7 +319,7 @@ public class ForumApiImpl implements ForumApi {
             }
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
 
         return new ResponseEntity<>(threads, HttpStatus.OK);
@@ -342,7 +342,7 @@ public class ForumApiImpl implements ForumApi {
         try{
             Forum forum = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] {slug}, new ForumMapper());
         }catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             Error error = new Error();
             error.setMessage("Форум отсутсвует в системе.");
             return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
@@ -363,7 +363,7 @@ public class ForumApiImpl implements ForumApi {
             }
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             Error error = new Error();
             error.setMessage("Форум отсутсвует в системе.");
             return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
@@ -386,10 +386,10 @@ public class ForumApiImpl implements ForumApi {
     @ApiParam(value = "Данные ветки обсуждения." ,required=true ) @RequestBody Thread thread) {
         Forum forumSearchResult = null;
         try {
-            forumSearchResult = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] { slug }, new ForumMapper());
+            forumSearchResult = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] { slug.toLowerCase() }, new ForumMapper());
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
         if (forumSearchResult == null) {
             return new ResponseEntity<>(new Error("Автор ветки или форум не найдены."), HttpStatus.NOT_FOUND);
@@ -399,11 +399,11 @@ public class ForumApiImpl implements ForumApi {
             threadSearchResult = jdbcTemplate.queryForObject(SEARCH_TRHEAD_BY_FORUM_AND_THREAD_SLUGS, new Object[] { slug, thread.getTitle() }, new ThreadsMapper());
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }*/
         if (thread.getSlug() != null/* && threadSearchResult == null*/) {
             try {
-                threadSearchResult = jdbcTemplate.queryForObject(SEARCH_TRHEAD_BY_SLUGS, new Object[] { thread.getSlug() }, new ThreadsMapper());
+                threadSearchResult = jdbcTemplate.queryForObject(SEARCH_TRHEAD_BY_SLUGS, new Object[] { thread.getSlug().toLowerCase() }, new ThreadsMapper());
             }
             catch (Exception e) {
                 e.printStackTrace();
@@ -414,10 +414,10 @@ public class ForumApiImpl implements ForumApi {
         }
         User user = null;
         try {
-            user = jdbcTemplate.queryForObject(SEARCH_USER_BY_NICKNAME_QUERY, new Object[] {thread.getAuthor()}, new UsersMapper());
+            user = jdbcTemplate.queryForObject(SEARCH_USER_BY_NICKNAME_QUERY, new Object[] {thread.getAuthor().toLowerCase()}, new UsersMapper());
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(new Error("Автор ветки или форум не найдены."), HttpStatus.NOT_FOUND);
         }
         BigDecimal thread_id = new BigDecimal(0);
@@ -428,13 +428,13 @@ public class ForumApiImpl implements ForumApi {
         try {
             if (user != null) {
                 long forum_id = 0;
-                forum_id = jdbcTemplate.queryForObject(SEARCH_FORIM_ID_BY_SLUG, Long.class, slug);
-                thread_id = jdbcTemplate.queryForObject(CREATE_THREAD_QUERY, BigDecimal.class, thread.getTitle(), user.getId(), forum_id, thread.getMessage(), thread.getSlug(), time);
+                forum_id = jdbcTemplate.queryForObject(SEARCH_FORIM_ID_BY_SLUG, Long.class, slug.toLowerCase());
+                thread_id = jdbcTemplate.queryForObject(CREATE_THREAD_QUERY, BigDecimal.class, thread.getTitle(), user.getId(), forum_id, thread.getMessage(), thread.getSlug(), thread.getSlug() == null ? thread.getSlug() : thread.getSlug().toLowerCase(), time);
             }
             else throw new Exception();
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(e.toString(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
         thread.setForum(forumSearchResult.getSlug());

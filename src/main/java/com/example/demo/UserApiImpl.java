@@ -24,15 +24,15 @@ public class UserApiImpl implements UserApi {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    private static final String SEARCH_USER_BY_NICKNAME_OR_EMAIL_QUERY = "SELECT * FROM USERS WHERE lower(nickname) = lower(?) OR lower(email) = lower(?)";
-    private static final String SEARCH_USER_BY_NICKNAME_QUERY = "SELECT * FROM USERS WHERE lower(nickname) = lower(?)";
+    private static final String SEARCH_USER_BY_NICKNAME_OR_EMAIL_QUERY = "SELECT * FROM USERS WHERE nickname_lower = ? OR lower(email) = ?";
+    private static final String SEARCH_USER_BY_NICKNAME_QUERY = "SELECT * FROM USERS WHERE nickname_lower = ?";
     private static final String SEARCH_USER_BY_EMAIL_QUERY = "SELECT * FROM USERS WHERE lower(email) = lower(?)";
     private static final String CREATE_USER =
-        "INSERT INTO users (nickname, fullname, about, email)\n" +
-        "VALUES (?, ?, ?, ?);";
+        "INSERT INTO users (nickname, nickname_lower, fullname, about, email)\n" +
+        "VALUES (?, ?, ?, ?, ?);";
     private static final String UPDATE_USER_PROFILE_QUERY =
             "UPDATE users SET fullname = ?, about = ?, email = ?\n" +
-            "WHERE nickname = ?";
+            "WHERE nickname_lower = ?";
 
     @Override
     @ApiOperation(value = "Создание нового пользователя", notes = "Создание нового пользователя в базе данных. ", response = User.class, tags={  })
@@ -49,9 +49,9 @@ public class UserApiImpl implements UserApi {
         ArrayList<User> users = null;
 
         try {
-            users = (ArrayList<User>)jdbcTemplate.query(SEARCH_USER_BY_NICKNAME_OR_EMAIL_QUERY, new Object[] { nickname, profile.getEmail() }, new UsersMapper());
+            users = (ArrayList<User>)jdbcTemplate.query(SEARCH_USER_BY_NICKNAME_OR_EMAIL_QUERY, new Object[] { nickname.toLowerCase(), profile.getEmail().toLowerCase() }, new UsersMapper());
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
 
         if (users != null && users.size() != 0) {
@@ -61,7 +61,7 @@ public class UserApiImpl implements UserApi {
         user = profile;
         user.setNickname(nickname);
 
-        jdbcTemplate.update(CREATE_USER, nickname, user.getFullname(), user.getAbout(), user.getEmail());
+        jdbcTemplate.update(CREATE_USER, nickname, nickname.toLowerCase(), user.getFullname(), user.getAbout(), user.getEmail());
 
         return new ResponseEntity<>(user, HttpStatus.CREATED);
     }
@@ -79,9 +79,9 @@ public class UserApiImpl implements UserApi {
         User user = null;
 
         try {
-            user = jdbcTemplate.queryForObject(SEARCH_USER_BY_NICKNAME_QUERY, new Object[] { nickname }, new UsersMapper());
+            user = jdbcTemplate.queryForObject(SEARCH_USER_BY_NICKNAME_QUERY, new Object[] { nickname.toLowerCase() }, new UsersMapper());
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(new Error("Пользователь не найден."), HttpStatus.NOT_FOUND);
         }
 
@@ -105,7 +105,7 @@ public class UserApiImpl implements UserApi {
         try {
             user = (User)this.userGetOne(nickname).getBody();
         }  catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(new Error("Пользователь отсутсвует в системе."), HttpStatus.NOT_FOUND);
         }
 
@@ -113,7 +113,7 @@ public class UserApiImpl implements UserApi {
         try {
             users = (ArrayList<User>)jdbcTemplate.query(SEARCH_USER_BY_EMAIL_QUERY, new Object[] { profile.getEmail() }, new UsersMapper());
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
 
         if (users != null && users.size() != 0) {
@@ -123,9 +123,9 @@ public class UserApiImpl implements UserApi {
         user.setProfile(profile);
 
         try {
-            jdbcTemplate.update(UPDATE_USER_PROFILE_QUERY, user.getFullname(), user.getAbout(), user.getEmail(), user.getNickname());
+            jdbcTemplate.update(UPDATE_USER_PROFILE_QUERY, user.getFullname(), user.getAbout(), user.getEmail(), user.getNickname().toLowerCase());
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
 
         return new ResponseEntity<>(user, HttpStatus.OK);

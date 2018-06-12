@@ -86,7 +86,7 @@ public class PostApiImpl implements PostApi {
             post = jdbcTemplate.queryForObject(SEARCH_POST_BY_ID, new Object[] { id }, new PostsMapper());
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(new Error("\"Can't find post with id: " + id), HttpStatus.NOT_FOUND);
         }
         PostFull postFull = new PostFull();
@@ -124,7 +124,7 @@ public class PostApiImpl implements PostApi {
             post1 = jdbcTemplate.queryForObject(SEARCH_POST_BY_ID, new Object[] { id }, new PostsMapper());
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(new Error("Сообщение отсутсвует в форуме."), HttpStatus.NOT_FOUND);
         }
         if (post == null || post.getMessage() == null || post.getMessage().equals(post1.getMessage())) {
