@@ -46,6 +46,45 @@ CREATE TABLE IF NOT EXISTS VOTES (
   voice SMALLINT
 );
 
-CREATE INDEX posts_tree_index on posts (path);
+CREATE INDEX IF NOT EXISTS forums_lower_slug_index on FORUMS (lower(slug));
+
+CREATE INDEX IF NOT EXISTS posts_path_index on posts (path);
+
+CREATE INDEX IF NOT EXISTS posts_branch_index on posts (branch);
+
+CREATE INDEX IF NOT EXISTS posts_branch_is_null on posts (branch) WHERE parent ISNULL AND branch > 0;
+
+CREATE INDEX IF NOT EXISTS posts_parent_index on posts (parent);
+
+CREATE INDEX IF NOT EXISTS users_lower_nickname_index on USERS(lower(nickname));
+
+CREATE INDEX IF NOT EXISTS threads_lower_slug_index on THREADS(lower(slug));
+
+CREATE INDEX IF NOT EXISTS votes_thread_index on VOTES(thread);
+
+CREATE INDEX IF NOT EXISTS votes_vote_maker_index on VOTES(thread, vote_maker);
 
 ALTER SEQUENCE posts_id_seq RESTART WITH 100000000000;
+
+CREATE OR REPLACE FUNCTION deleteall()
+  RETURNS void
+LANGUAGE plpgsql
+AS $$
+begin
+  delete from votes; delete from posts; delete from threads; delete from forums; delete from users;
+end;
+$$;
+
+CREATE OR REPLACE FUNCTION create_or_update_vote(u_id INTEGER, thread INTEGER, v INTEGER)
+  RETURNS VOID AS '
+BEGIN
+  INSERT INTO votes (vote_maker, thread, voice) VALUES (u_id, t_id, v)
+  ON CONFLICT (vote_maker, thread)
+    DO UPDATE SET voice = v;
+  UPDATE threads
+  SET votes = (SELECT SUM(voice)
+               FROM votes
+               WHERE thread = t_id)
+  WHERE id = t_id;
+END;'
+LANGUAGE plpgsql;

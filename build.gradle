@@ -46,6 +46,7 @@ dependencies {
 	compile 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 	compile("joda-time:joda-time:2.4")
 	compile 'org.flywaydb:flyway-core'
+	compile group: 'commons-dbcp', name: 'commons-dbcp', version: '1.2.2'
 
 	runtime 'com.h2database:h2'
 	runtime 'org.postgresql:postgresql'

@@ -238,7 +238,7 @@ public class ForumApiImpl implements ForumApi {
             forumSearchResult.setUser(jdbcTemplate.queryForObject(SEARCH_USER_NICKNAME_BY_ID_QUERY, String.class, Long.parseLong(forumSearchResult.getUser())));
         }
         catch (Exception e) {
-            e.printStackTrace();
+            ////e.printStackTrace();
         }
         if (forumSearchResult != null) {
             return new ResponseEntity<>(forumSearchResult, HttpStatus.CONFLICT);
@@ -248,7 +248,7 @@ public class ForumApiImpl implements ForumApi {
             user = jdbcTemplate.queryForObject(SEARCH_USER_BY_NICKNAME_QUERY, new Object[] {forum.getUser()}, new UsersMapper());
         }
         catch (Exception e) {
-            e.printStackTrace();
+            ////e.printStackTrace();
             return new ResponseEntity<>(new Error("Владелец форума не найден."), HttpStatus.NOT_FOUND);
         }
         int result = 0;
@@ -273,7 +273,7 @@ public class ForumApiImpl implements ForumApi {
             forumSearchResult.setUser(jdbcTemplate.queryForObject(SEARCH_USER_NICKNAME_BY_ID_QUERY, String.class, Long.parseLong(forumSearchResult.getUser())));
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             Error error = new Error();
             error.setMessage("Форум отсутсвует в системе.");
             return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
@@ -319,7 +319,7 @@ public class ForumApiImpl implements ForumApi {
             }
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
 
         return new ResponseEntity<>(threads, HttpStatus.OK);
@@ -342,7 +342,7 @@ public class ForumApiImpl implements ForumApi {
         try{
             Forum forum = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] {slug}, new ForumMapper());
         }catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             Error error = new Error();
             error.setMessage("Форум отсутсвует в системе.");
             return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
@@ -363,7 +363,7 @@ public class ForumApiImpl implements ForumApi {
             }
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             Error error = new Error();
             error.setMessage("Форум отсутсвует в системе.");
             return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
@@ -389,7 +389,7 @@ public class ForumApiImpl implements ForumApi {
             forumSearchResult = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] { slug }, new ForumMapper());
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
         if (forumSearchResult == null) {
             return new ResponseEntity<>(new Error("Автор ветки или форум не найдены."), HttpStatus.NOT_FOUND);
@@ -399,14 +399,14 @@ public class ForumApiImpl implements ForumApi {
             threadSearchResult = jdbcTemplate.queryForObject(SEARCH_TRHEAD_BY_FORUM_AND_THREAD_SLUGS, new Object[] { slug, thread.getTitle() }, new ThreadsMapper());
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }*/
         if (thread.getSlug() != null/* && threadSearchResult == null*/) {
             try {
                 threadSearchResult = jdbcTemplate.queryForObject(SEARCH_TRHEAD_BY_SLUGS, new Object[] { thread.getSlug() }, new ThreadsMapper());
             }
             catch (Exception e) {
-                e.printStackTrace();
+                //e.printStackTrace();
             }
         }
         if (threadSearchResult != null) {
@@ -417,7 +417,7 @@ public class ForumApiImpl implements ForumApi {
             user = jdbcTemplate.queryForObject(SEARCH_USER_BY_NICKNAME_QUERY, new Object[] {thread.getAuthor()}, new UsersMapper());
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(new Error("Автор ветки или форум не найдены."), HttpStatus.NOT_FOUND);
         }
         BigDecimal thread_id = new BigDecimal(0);
@@ -434,7 +434,7 @@ public class ForumApiImpl implements ForumApi {
             else throw new Exception();
         }
         catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(e.toString(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
         thread.setForum(forumSearchResult.getSlug());

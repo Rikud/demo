@@ -51,7 +51,7 @@ public class UserApiImpl implements UserApi {
         try {
             users = (ArrayList<User>)jdbcTemplate.query(SEARCH_USER_BY_NICKNAME_OR_EMAIL_QUERY, new Object[] { nickname, profile.getEmail() }, new UsersMapper());
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
 
         if (users != null && users.size() != 0) {
@@ -81,7 +81,7 @@ public class UserApiImpl implements UserApi {
         try {
             user = jdbcTemplate.queryForObject(SEARCH_USER_BY_NICKNAME_QUERY, new Object[] { nickname }, new UsersMapper());
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(new Error("Пользователь не найден."), HttpStatus.NOT_FOUND);
         }
 
@@ -105,7 +105,7 @@ public class UserApiImpl implements UserApi {
         try {
             user = (User)this.userGetOne(nickname).getBody();
         }  catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return new ResponseEntity<>(new Error("Пользователь отсутсвует в системе."), HttpStatus.NOT_FOUND);
         }
 
@@ -113,7 +113,7 @@ public class UserApiImpl implements UserApi {
         try {
             users = (ArrayList<User>)jdbcTemplate.query(SEARCH_USER_BY_EMAIL_QUERY, new Object[] { profile.getEmail() }, new UsersMapper());
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
 
         if (users != null && users.size() != 0) {
@@ -125,7 +125,7 @@ public class UserApiImpl implements UserApi {
         try {
             jdbcTemplate.update(UPDATE_USER_PROFILE_QUERY, user.getFullname(), user.getAbout(), user.getEmail(), user.getNickname());
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
 
         return new ResponseEntity<>(user, HttpStatus.OK);

@@ -16,6 +16,7 @@ public class ForumMapper implements RowMapper<Forum> {
         forum.setUser(resultSet.getString("user_id"));
         forum.setThreads(resultSet.getBigDecimal("threads"));
         forum.setPosts(resultSet.getBigDecimal("posts"));
+        forum.setId(resultSet.getBigDecimal("id"));
         return forum;
     }
 }
