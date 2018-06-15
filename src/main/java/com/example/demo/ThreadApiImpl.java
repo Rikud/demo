@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.constraints.Max;
@@ -45,17 +46,17 @@ public class ThreadApiImpl implements ThreadApi {
 
     private static final String SEARCH_TRHEAD_BY_ID =
             "SELECT users.nickname as author,\n" +
-                    "threads.created, \n" +
-                    "  forums.slug as forum, \n" +
-                    "  threads.id, \n" +
-                    "  threads.message, \n" +
-                    "  threads.slug, \n" +
-                    "  threads.tittle, \n" +
-                    "  threads.votes \n" +
-                    "FROM forums, threads, users \n" +
-                    "WHERE threads.id = ? AND\n" +
-                    "  forums.id = threads.forum" +
-                    "  AND users.id = threads.author\n;";
+                    "  threads.created,\n" +
+                    "       forums.slug as forum,\n" +
+                    "  threads.id,\n" +
+                    "  threads.message,\n" +
+                    "  threads.slug,\n" +
+                    "  threads.tittle,\n" +
+                    "  threads.votes\n" +
+                    "FROM threads\n" +
+                    "  JOIN users ON users.id = threads.author\n" +
+                    "  JOIN forums ON forums.id = threads.forum\n" +
+                    "WHERE threads.id = ?";
 
     private static final String SEARCH_TRHEAD_BY_SLUG =
         "SELECT users.nickname as author,\n" +
@@ -71,51 +72,14 @@ public class ThreadApiImpl implements ThreadApi {
         "  forums.id = threads.forum" +
         "  AND users.id = threads.author\n;";
 
-    private static final String SEARCH_PARENT_POST =
-            "SELECT posts.id, \n" +
-            "  posts.parent, \n" +
-            "  users.nickname as author, \n" +
-            "  posts.thread, \n" +
-            "  forums.slug as forum, \n" +
-            "  posts.message, \n" +
-            "  posts.isedited, \n" +
-            "  posts.created\n" +
-            "FROM forums, users, posts\n" +
-            "WHERE\n" +
-            "  users.id =  posts.author AND\n" +
-            "  forums.id = posts.forum AND\n" +
-            "  posts.id = ?\n";
-
     private static final String SEARCH_USER_ID_BY_NICKNAME = "SELECT ID FROM USERS WHERE nickname_lower = ?;";
-    private static final String SEARCH_USER_BY_NICKNAME = "SELECT * FROM USERS WHERE lower(nickname) = lower(?);";
     private static final String SEARCH_FORUM_ID_BY_SLUG = "SELECT ID FROM FORUMS WHERE slug_lower = ?;";
-    private static final String SEARCH_FORUM_BY_SLUG = "SELECT * FROM FORUMS WHERE lower(slug) = ?;";
-    private static final String SEARCH_POST_PATH_AND_BRANCH_BY_POST_ID = "SELECT PATH, BRANCH FROM POSTS WHERE ID = ?";
-    private static final String UPDATE_POST_PATH_AND_BRANCH_BY_POST_ID = "UPDATE POSTS SET PATH = ?, BRANCH = ? WHERE ID = ?";
-    private static final String CREATE_POST_QUERY =
-        "INSERT INTO POSTS (id, parent, author, thread, forum, message, created, path, branch)\n" +
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id;";
-    private static final String SEARCH_POST_ID_BY_AUTHOR_AND_THREAD_AND_MESSAGE =
-        "SELECT ID FROM POSTS WHERE author = ? and thread = ? AND message = ?";
-    private static final String SEARCH_VOTE_BY_THREAD_ID_AND_USER_ID =
-        "SELECT id, thread, vote_maker, voice \n" +
-        "FROM votes\n" +
-        "WHERE thread = ? AND \n" +
-        "vote_maker = ?";
-    private static final String UPDATE_VOTE_BY_ID =
-        "UPDATE votes SET voice = ? WHERE id = ?";
-    private static final String CRATE_VOTE_BY_THREAD_AND_USER_ID =
-        "INSERT INTO votes(thread, vote_maker, voice)\n" +
-        "VALUES (?, ?, ?)";
-    private static final String UPDATE_THREAD_VOTE_BY_THREAD_ID =
-            "UPDATE threads SET Votes = ? WHERE id = ?";
-    private static final String GET_LAST_POSTS_TREE_BRANCH =
-            "SELECT branch FROM POSTS WHERE parent ISNULL AND branch > 0 ORDER BY branch DESC limit 1;";
     private static final String UPDATE_THREAD =
             "UPDATE threads SET tittle = ?, message = ? WHERE id = ?";
     private static final String UPDATE_FORUM_POSTS_COUNTER =
             "UPDATE forums SET posts = posts + ? WHERE id = ?";
 
+    @Transactional
     @Override
     @ApiOperation(value = "Создание новых постов", notes = "Добавление новых постов в ветку обсуждения на форум. Все посты, созданные в рамках одного вызова данного метода должны иметь одинаковую дату создания (Post.Created). ", response = Posts.class, tags={  })
     @ApiResponses(value = {
@@ -139,104 +103,29 @@ public class ThreadApiImpl implements ThreadApi {
             return new ResponseEntity<>(new Error("Ветка обсуждения отсутствует в базе данных."), HttpStatus.NOT_FOUND);
         }
         BigDecimal forumResult = jdbcTemplate.queryForObject(SEARCH_FORUM_ID_BY_SLUG,BigDecimal.class,thread.getForum().toLowerCase());
-        Connection conn = null;
-        CallableStatement createPost = null;
-        try {
-            conn = jdbcTemplate.getDataSource().getConnection();
-            conn.setAutoCommit(false);
-            try {
-                createPost = conn.prepareCall("select create_post(?, ?, ?, ?, ?, ?, ?)");
-                for (int i = 0; i < posts.size(); ++i) {
-                    Post post = posts.get(i);
-                    post.setThread(thread.getId());
-                    post.setForum(thread.getForum());
-                    if (post.getCreated() == null) {
-                        post.setCreated(now);
-                    }
-                    BigDecimal author = null;
-                    try {
-                        author = jdbcTemplate.queryForObject(SEARCH_USER_ID_BY_NICKNAME, BigDecimal.class, post.getAuthor().toLowerCase());
-                    } catch (Exception e) {
-                        return new ResponseEntity<>(new Error("Can't find post author by nickname: " + post.getAuthor()), HttpStatus.NOT_FOUND);
-                    }
-                    BigDecimal postId = jdbcTemplate.queryForObject("SELECT nextval('posts_id_seq')", BigDecimal.class);
-                    post.setId(postId);
-                    createPost.setBigDecimal(1, postId);
-                    if (post.getParent() != null) {
-                        createPost.setBigDecimal(2, post.getParent());
-                    } else {
-                        createPost.setNull(2, Types.NUMERIC);
-                    }
-                    createPost.setBigDecimal(3, author);
-                    createPost.setBigDecimal(4, post.getThread());
-                    createPost.setBigDecimal(5, forumResult);
-                    createPost.setString(6, post.getMessage());
-                    createPost.setTimestamp(7, new Timestamp(new DateTime(post.getCreated()).getMillis()));
-                    createPost.addBatch();
-                    posts.set(i, post);
-                }
-                createPost.executeBatch();
-                conn.commit();
-            } catch (Exception ex) {
-                conn.rollback();
-                throw new DataRetrievalFailureException(ex.getLocalizedMessage());
-            }
-            finally {
-                if (createPost != null)
-                    createPost.close();
-                conn.setAutoCommit(true);
-            }
-        } catch (SQLException ex) {
-            throw new DataRetrievalFailureException(ex.getLocalizedMessage());
-        }  finally {
-            try {
-                if (conn != null)
-                    conn.close();
-            }
-            catch (Exception ex2)
-            {
-                throw new DataRetrievalFailureException(ex2.getLocalizedMessage());
-            }
-        }
 
-        /*ArrayList<BigDecimal> authors = new ArrayList<BigDecimal>();
-        if (thread == null)
-            return new ResponseEntity<>(new Error("Ветка обсуждения отсутствует в базе данных."), HttpStatus.NOT_FOUND);
         for (int i = 0; i < posts.size(); ++i) {
             Post post = posts.get(i);
-            Post parent = null;
-            if (post.getParent() != null) {
-                try {
-                    parent = jdbcTemplate.queryForObject(SEARCH_PARENT_POST, new Object[] {post.getParent() }, new PostsMapper());
-                } catch (Exception e) {
-                    return new ResponseEntity<>(new Error("Родительский пост " + posts.get(i).getParent() + " отсутствует в базе данных."), HttpStatus.CONFLICT);
-                }
-                if (parent == null) {
-                    return new ResponseEntity<>(new Error("Родительский пост " + posts.get(i).getParent() + " отсутствует в базе данных."), HttpStatus.CONFLICT);
-                }
-                if (!parent.getThread().equals(thread.getId())) {
-                    return new ResponseEntity<>(new Error("Parent post was created in another thread."), HttpStatus.CONFLICT);
-                }
-            }
             post.setThread(thread.getId());
             post.setForum(thread.getForum());
             if (post.getCreated() == null) {
                 post.setCreated(now);
             }
-            BigDecimal author = null;
+            BigDecimal postId = null;
             try {
-                author = jdbcTemplate.queryForObject(SEARCH_USER_ID_BY_NICKNAME, BigDecimal.class, post.getAuthor().toLowerCase());
-                authors.add(author);
+                postId = jdbcTemplate.queryForObject("select create_post(?, ?, ?, ?, ?, ?)", BigDecimal.class,  post.getParent(), post.getAuthor().toLowerCase(), thread.getId(), forumResult, post.getMessage(), new Timestamp(new DateTime(post.getCreated()).getMillis()));
             } catch (Exception e) {
-                return new ResponseEntity<>(new Error("Can't find post author by nickname: " + post.getAuthor()), HttpStatus.NOT_FOUND);
+                e.printStackTrace();
             }
+            post.setId(postId);
             posts.set(i, post);
-        }*/
+        }
 
         jdbcTemplate.update(UPDATE_FORUM_POSTS_COUNTER, new BigDecimal(posts.size()), forumResult);
         return new ResponseEntity<>(posts, HttpStatus.CREATED);
     }
 
+    @Transactional
     @Override
     @ApiOperation(value = "Получение информации о ветке обсуждения", notes = "Получение информации о ветке обсуждения по его имени. ", response = Thread.class, tags={  })
     @ApiResponses(value = {

@@ -406,7 +406,7 @@ public class ForumApiImpl implements ForumApi {
                 threadSearchResult = jdbcTemplate.queryForObject(SEARCH_TRHEAD_BY_SLUGS, new Object[] { thread.getSlug().toLowerCase() }, new ThreadsMapper());
             }
             catch (Exception e) {
-                e.printStackTrace();
+                //e.printStackTrace();
             }
         }
         if (threadSearchResult != null) {

@@ -42,15 +42,14 @@ public class PostApiImpl implements PostApi {
              "  users.id =  posts.author AND\n" +
              "  forums.id = posts.forum AND\n" +
              "  posts.id = ?\n";
-    private static final String SEARCH_USER_BY_NICKNAME = "SELECT * FROM users WHERE lower(nickname) = lower(?);";
+    private static final String SEARCH_USER_BY_NICKNAME = "SELECT * FROM users WHERE nickname_lower = ?;";
     private static final String SEARCH_FORUM_BY_SLUG =
-            "SELECT\n" +
-                "forums.slug,\n" +
-                "forums.tittle,\n" +
-                "users.nickname as user_id,\n" +
-                "forums.threads,\n" +
-                "forums.posts FROM forums, users\n" +
-                "WHERE lower(forums.slug) = lower(?) AND forums.user_id = users.id;";
+            "SELECT forums.id, forums.slug,\n" +
+            "forums.tittle, \n" +
+            "users.nickname as user_id, \n" +
+            "forums.threads, \n" +
+            "forums.posts FROM forums, users \n" +
+            "WHERE forums.slug_lower = ? AND forums.user_id = users.id;";
     private static final String SEARCH_THREAD_BY_ID =
             "SELECT users.nickname as author,\n" +
             "threads.created, \n" +
@@ -93,11 +92,11 @@ public class PostApiImpl implements PostApi {
         postFull.setPost(post);
         if (related != null) {
             if (related.contains("user")) {
-                User author = jdbcTemplate.queryForObject(SEARCH_USER_BY_NICKNAME, new Object[]{post.getAuthor()}, new UsersMapper());
+                User author = jdbcTemplate.queryForObject(SEARCH_USER_BY_NICKNAME, new Object[]{post.getAuthor().toLowerCase()}, new UsersMapper());
                 postFull.setAuthor(author);
             }
             if (related.contains("forum")) {
-                Forum forum = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[]{post.getForum()}, new ForumMapper());
+                Forum forum = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[]{post.getForum().toLowerCase()}, new ForumMapper());
                 postFull.setForum(forum);
             }
             if (related.contains("thread")) {
