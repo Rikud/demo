@@ -108,15 +108,16 @@ public class ThreadApiImpl implements ThreadApi {
     public ResponseEntity<?> postsCreate(@ApiParam(value = "Идентификатор ветки обсуждения.",required=true ) @PathVariable("slugOrId") String slugOrId,
     @ApiParam(value = "Список создаваемых постов." ,required=true ) @RequestBody Posts posts) {
         DateTime now = DateTime.now().toDateTime(DateTimeZone.UTC);
-        if (posts.isEmpty()) {
-            return new ResponseEntity<>(posts, HttpStatus.CREATED);
-        }
         Thread thread = null;
         try {
             thread = this.searchThreadByIdOrSlug(slugOrId);
         } catch (Exception e5) {
             return new ResponseEntity<>(new Error("Ветка обсуждения отсутствует в базе данных."), HttpStatus.NOT_FOUND);
         }
+        if (posts.isEmpty()) {
+            return new ResponseEntity<>(posts, HttpStatus.CREATED);
+        }
+
         //log.info("Создание новых постов");
         Forum forumResult = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG,new Object[]{thread.getForum().toLowerCase()}, new ForumMapper());
         /*Connection conn = null;
@@ -227,6 +228,17 @@ public class ThreadApiImpl implements ThreadApi {
 
         for (int i = 0; i < posts.size(); ++i) {
             Post post = posts.get(i);
+            Post parent_post = null;
+            if (post.getParent() != null) {
+                try {
+                    parent_post = jdbcTemplate.queryForObject("select * from posts where id = ? and thread = ?", new Object[] {post.getParent(), thread.getId()}, new PostsMapper());
+                    if (!parent_post.getThread().equals(thread.getId())) {
+                        return new ResponseEntity<>(new Error("Parent post was created in another thread"), HttpStatus.CONFLICT);
+                    }
+                } catch (Exception p_e) {
+                    return new ResponseEntity<>(new Error("Parent post not found"), HttpStatus.CONFLICT);
+                }
+            }
             post.setThread(thread.getId());
             post.setForum(thread.getForum());
             if (post.getCreated() == null) {
@@ -234,9 +246,15 @@ public class ThreadApiImpl implements ThreadApi {
             }
             Integer postid = null;
             try {
+
                 //Integer user_id = jdbcTemplate.queryForObject("SELECT search_user_id_by_nickname(?);", Integer.class, post.getAuthor().toLowerCase());
                 postid = jdbcTemplate.queryForObject("SELECT nextval(pg_get_serial_sequence('posts', 'id'));", Integer.class);
-                User author_id = jdbcTemplate.queryForObject("SELECT * FROM USERS where nickname_lower = ?", new Object[] {post.getAuthor().toLowerCase()}, new UsersMapper());
+                User author_id = null;
+                try {
+                    author_id = jdbcTemplate.queryForObject("SELECT * FROM USERS where nickname_lower = ?", new Object[] {post.getAuthor().toLowerCase()}, new UsersMapper());
+                } catch (Exception e) {
+                    return new ResponseEntity<>(new Error("Can't find post author by nickname"), HttpStatus.NOT_FOUND);
+                }
                 callableStatement.setInt(1, postid);
                 callableStatement.setInt(2, (post.getParent() == null ? new Integer(0) : post.getParent()));
                 callableStatement.setInt(3, author_id.getId());
@@ -494,7 +512,7 @@ public class ThreadApiImpl implements ThreadApi {
 
     private Integer searchThreadIdByIdOrSlug(String slugOrId) {
         if (StringUtils.isNumeric(slugOrId))
-            return new Integer(slugOrId);
+            return jdbcTemplate.queryForObject("select id from threads where id = ?", Integer.class, new Integer(slugOrId));
         else
             return jdbcTemplate.queryForObject(SEARCH_THREAD_ID_BY_SLUG, Integer.class, slugOrId.toLowerCase());
     }

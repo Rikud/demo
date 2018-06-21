@@ -34,6 +34,7 @@ public class ServiceApiImpl implements ServiceApi {
             "DELETE FROM VOTES;\n" +
             "DELETE FROM POSTS;\n" +
             "DELETE FROM THREADS;\n" +
+            "DELETE FROM USERS_IN_FORUMS;\n" +
             "DELETE FROM FORUMS;\n" +
             "DELETE FROM USERS;";
 
