@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
-import java.math.BigDecimal;
 @javax.annotation.Generated(value = "io.swagger.codegen.languages.SpringCodegen", date = "2018-03-25T22:28:04.198-07:00")
 
 @Api(value = "thread", description = "the thread API")
@@ -47,8 +46,8 @@ public interface ThreadApi {
         produces = { "application/json" }, 
         method = RequestMethod.GET)
     ResponseEntity<?> threadGetPosts(@ApiParam(value = "Идентификатор ветки обсуждения.",required=true ) @PathVariable("slugOrId") String slugOrId,
-         @Min(1) @Max(10000) @ApiParam(value = "Максимальное кол-во возвращаемых записей.", defaultValue = "100") @RequestParam(value = "limit", required = false, defaultValue="100") BigDecimal limit,
-         @ApiParam(value = "Идентификатор поста, после которого будут выводиться записи (пост с данным идентификатором в результат не попадает). ") @RequestParam(value = "since", required = false) BigDecimal since,
+         @Min(1) @Max(10000) @ApiParam(value = "Максимальное кол-во возвращаемых записей.", defaultValue = "100") @RequestParam(value = "limit", required = false, defaultValue="100") Integer limit,
+         @ApiParam(value = "Идентификатор поста, после которого будут выводиться записи (пост с данным идентификатором в результат не попадает). ") @RequestParam(value = "since", required = false) Integer since,
          @ApiParam(value = "Вид сортировки:  * flat - по дате, комментарии выводятся простым списком в порядке создания;  * tree - древовидный, комментарии выводятся отсортированные в дереве    по N штук;  * parent_tree - древовидные с пагинацией по родительским (parent_tree),    на странице N родительских комментов и все комментарии прикрепленные    к ним, в древвидном отображение. Подробности: https://park.mail.ru/blog/topic/view/1191/ ", allowableValues = "FLAT, TREE, PARENT_TREE", defaultValue = "flat") @RequestParam(value = "sort", required = false, defaultValue="flat") String sort,
          @ApiParam(value = "Флаг сортировки по убыванию. ") @RequestParam(value = "desc", required = false) Boolean desc);
 

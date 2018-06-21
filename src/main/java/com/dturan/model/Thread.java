@@ -7,7 +7,6 @@ import org.joda.time.DateTime;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
-import java.math.BigDecimal;
 import java.util.Objects;
 /**
  * Ветка обсуждения на форуме. 
@@ -17,7 +16,7 @@ import java.util.Objects;
 
 public class Thread   {
   @JsonProperty("id")
-  private BigDecimal id = null;
+  private Integer id = null;
 
   @JsonProperty("title")
   private String title = null;
@@ -32,7 +31,7 @@ public class Thread   {
   private String message = null;
 
   @JsonProperty("votes")
-  private BigDecimal votes = null;
+  private Integer votes = null;
 
   @JsonProperty("slug")
   private String slug = null;
@@ -40,7 +39,7 @@ public class Thread   {
   @JsonProperty("created")
   private String created = null;
 
-  public Thread id(BigDecimal id) {
+  public Thread id(Integer id) {
     this.id = id;
     return this;
   }
@@ -50,11 +49,11 @@ public class Thread   {
    * @return id
   **/
   @ApiModelProperty(example = "42.0", readOnly = true, value = "Идентификатор ветки обсуждения.")
-  public BigDecimal getId() {
+  public Integer getId() {
     return id;
   }
 
-  public void setId(BigDecimal id) {
+  public void setId(Integer id) {
     this.id = id;
   }
 
@@ -133,7 +132,7 @@ public class Thread   {
     this.message = message;
   }
 
-  public Thread votes(BigDecimal votes) {
+  public Thread votes(Integer votes) {
     this.votes = votes;
     return this;
   }
@@ -143,11 +142,11 @@ public class Thread   {
    * @return votes
   **/
   @ApiModelProperty(readOnly = true, value = "Кол-во голосов непосредственно за данное сообщение форума.")
-  public BigDecimal getVotes() {
+  public Integer getVotes() {
     return votes;
   }
 
-  public void setVotes(BigDecimal votes) {
+  public void setVotes(Integer votes) {
     this.votes = votes;
   }
 

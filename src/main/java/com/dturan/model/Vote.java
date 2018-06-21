@@ -5,7 +5,6 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 
 import javax.validation.constraints.NotNull;
-import java.math.BigDecimal;
 import java.util.Objects;
 /**
  * Информация о голосовании пользователя. 
@@ -16,24 +15,24 @@ import java.util.Objects;
 public class Vote   {
 
   @JsonProperty("id")
-  private BigDecimal id = null;
+  private Integer id = null;
 
   @JsonProperty("nickname")
   private String nickname = null;
 
   @JsonProperty("voice")
-  private BigDecimal voice = null;
+  private Integer voice = null;
 
   public Vote nickname(String nickname) {
     this.nickname = nickname;
     return this;
   }
 
-  public BigDecimal getId() {
+  public Integer getId() {
     return id;
   }
 
-  public void setId(BigDecimal id) {
+  public void setId(Integer id) {
     this.id = id;
   }
 
@@ -51,7 +50,7 @@ public class Vote   {
     this.nickname = nickname;
   }
 
-  public Vote voice(BigDecimal voice) {
+  public Vote voice(Integer voice) {
     this.voice = voice;
     return this;
   }
@@ -62,11 +61,11 @@ public class Vote   {
   **/
   @ApiModelProperty(required = true, value = "Отданный голос.")
   @NotNull
-  public BigDecimal getVoice() {
+  public Integer getVoice() {
     return voice;
   }
 
-  public void setVoice(BigDecimal voice) {
+  public void setVoice(Integer voice) {
     this.voice = voice;
   }
 

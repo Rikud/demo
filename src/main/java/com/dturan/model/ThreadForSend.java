@@ -2,14 +2,12 @@ package com.dturan.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.math.BigDecimal;
-
 public class ThreadForSend {
-    public BigDecimal getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(BigDecimal id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -45,11 +43,11 @@ public class ThreadForSend {
         this.message = message;
     }
 
-    public BigDecimal getVotes() {
+    public Integer getVotes() {
         return votes;
     }
 
-    public void setVotes(BigDecimal votes) {
+    public void setVotes(Integer votes) {
         this.votes = votes;
     }
 
@@ -62,7 +60,7 @@ public class ThreadForSend {
     }
 
     @JsonProperty("id")
-    private BigDecimal id = null;
+    private Integer id = null;
 
     @JsonProperty("title")
     private String title = null;
@@ -77,7 +75,7 @@ public class ThreadForSend {
     private String message = null;
 
     @JsonProperty("votes")
-    private BigDecimal votes = null;
+    private Integer votes = null;
 
     @JsonProperty("created")
     private String created = null;

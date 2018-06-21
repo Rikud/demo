@@ -3,7 +3,6 @@ package com.dturan.Mapper;
 import com.dturan.model.Status;
 import org.springframework.jdbc.core.RowMapper;
 
-import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -12,24 +11,24 @@ public class StatusMapper implements RowMapper<Status> {
     public Status mapRow(ResultSet resultSet, int i) throws SQLException {
         Status status = new Status();
         try {
-            status.setForum(resultSet.getBigDecimal("forums"));
+            status.setForum(resultSet.getInt("forums"));
         } catch (Exception e) {
-            status.setForum(new BigDecimal((0)));
+            status.setForum(new Integer((0)));
         }
         try {
-            status.setPost(resultSet.getBigDecimal("posts"));
+            status.setPost(resultSet.getInt("posts"));
         } catch (Exception e) {
-            status.setPost(new BigDecimal((0)));
+            status.setPost(new Integer((0)));
         }
         try {
-            status.setThread(resultSet.getBigDecimal("threads"));
+            status.setThread(resultSet.getInt("threads"));
         } catch (Exception e) {
-            status.setThread(new BigDecimal((0)));
+            status.setThread(new Integer((0)));
         }
         try {
-            status.setUser(resultSet.getBigDecimal("users"));
+            status.setUser(resultSet.getInt("users"));
         } catch (Exception e) {
-            status.setUser(new BigDecimal((0)));
+            status.setUser(new Integer((0)));
         }
         return status;
     }

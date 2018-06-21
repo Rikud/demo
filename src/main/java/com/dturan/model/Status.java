@@ -1,12 +1,10 @@
 package com.dturan.model;
 
-import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import java.math.BigDecimal;
-import javax.validation.constraints.*;
+
+import javax.validation.constraints.NotNull;
+import java.util.Objects;
 /**
  * Status
  */
@@ -14,18 +12,18 @@ import javax.validation.constraints.*;
 
 public class Status   {
   @JsonProperty("user")
-  private BigDecimal user = null;
+  private Integer user = null;
 
   @JsonProperty("forum")
-  private BigDecimal forum = null;
+  private Integer forum = null;
 
   @JsonProperty("thread")
-  private BigDecimal thread = null;
+  private Integer thread = null;
 
   @JsonProperty("post")
-  private BigDecimal post = null;
+  private Integer post = null;
 
-  public Status user(BigDecimal user) {
+  public Status user(Integer user) {
     this.user = user;
     return this;
   }
@@ -36,15 +34,15 @@ public class Status   {
   **/
   @ApiModelProperty(example = "1000.0", required = true, value = "Кол-во пользователей в базе данных.")
   @NotNull
-  public BigDecimal getUser() {
+  public Integer getUser() {
     return user;
   }
 
-  public void setUser(BigDecimal user) {
+  public void setUser(Integer user) {
     this.user = user;
   }
 
-  public Status forum(BigDecimal forum) {
+  public Status forum(Integer forum) {
     this.forum = forum;
     return this;
   }
@@ -55,15 +53,15 @@ public class Status   {
   **/
   @ApiModelProperty(example = "100.0", required = true, value = "Кол-во разделов в базе данных.")
   @NotNull
-  public BigDecimal getForum() {
+  public Integer getForum() {
     return forum;
   }
 
-  public void setForum(BigDecimal forum) {
+  public void setForum(Integer forum) {
     this.forum = forum;
   }
 
-  public Status thread(BigDecimal thread) {
+  public Status thread(Integer thread) {
     this.thread = thread;
     return this;
   }
@@ -74,15 +72,15 @@ public class Status   {
   **/
   @ApiModelProperty(example = "1000.0", required = true, value = "Кол-во веток обсуждения в базе данных.")
   @NotNull
-  public BigDecimal getThread() {
+  public Integer getThread() {
     return thread;
   }
 
-  public void setThread(BigDecimal thread) {
+  public void setThread(Integer thread) {
     this.thread = thread;
   }
 
-  public Status post(BigDecimal post) {
+  public Status post(Integer post) {
     this.post = post;
     return this;
   }
@@ -93,11 +91,11 @@ public class Status   {
   **/
   @ApiModelProperty(example = "1000000.0", required = true, value = "Кол-во сообщений в базе данных.")
   @NotNull
-  public BigDecimal getPost() {
+  public Integer getPost() {
     return post;
   }
 
-  public void setPost(BigDecimal post) {
+  public void setPost(Integer post) {
     this.post = post;
   }
 

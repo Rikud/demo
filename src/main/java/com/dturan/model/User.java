@@ -5,7 +5,6 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 
 import javax.validation.constraints.NotNull;
-import java.math.BigDecimal;
 import java.util.Objects;
 /**
  * Информация о пользователе. 
@@ -16,7 +15,7 @@ import java.util.Objects;
 public class User   {
 
   @JsonProperty("id")
-  private BigDecimal id = null;
+  private Integer id = null;
 
   @JsonProperty("nickname")
   private String nickname = null;
@@ -36,11 +35,11 @@ public class User   {
   }
 
   @ApiModelProperty(example = "42.0", readOnly = true, value = "Идентификатор ветки обсуждения.")
-  public BigDecimal getId() {
+  public Integer getId() {
     return id;
   }
 
-  public void setId(BigDecimal id) {
+  public void setId(Integer id) {
     this.id = id;
   }
 

@@ -21,21 +21,29 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
-import java.math.BigDecimal;
+import javax.validation.constraints.NotNull;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/forum/")
 public class ForumApiImpl implements ForumApi {
 
-    @Autowired
+    @NotNull
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    public ForumApiImpl(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    private static Logger log = Logger.getLogger(ForumApiImpl.class.getName());
 
     private static final String CREATE_FORUM_QUERY = "INSERT INTO FORUMS (tittle, slug, slug_lower, user_id) VALUES(?, ?, ?, ?)";
     private static final String SEARCH_USER_BY_NICKNAME_QUERY = "SELECT * FROM USERS WHERE nickname_lower = ?";
     private static final String SEARCH_FORIM_ID_BY_SLUG  = "SELECT ID FROM forums WHERE slug_lower = ?";
-    private static final String SEARCH_FORUM_BY_SLUG = "SELECT * FROM FORUMS WHERE lower(SLUG) = lower(?)";
+    private static final String SEARCH_FORUM_BY_SLUG = "select * from forums where slug_lower = ?";
     private static final String SEARCH_USER_NICKNAME_BY_ID_QUERY = "SELECT nickname FROM USERS WHERE id = ?";
     private static final String SEARCH_FORUM_THREADS =
         "SELECT users.nickname as author,\n" +
@@ -47,7 +55,7 @@ public class ForumApiImpl implements ForumApi {
         "  threads.tittle,\n" +
         "  threads.votes\n" +
         "FROM forums, threads, users\n" +
-        "WHERE lower(forums.slug) = lower(?)\n" +
+        "WHERE forums.slug_lower = ?\n" +
         "      AND forums.id = threads.forum\n" +
         "      AND users.id =  threads.author\n" +
         "ORDER BY threads.created\n" +
@@ -63,7 +71,7 @@ public class ForumApiImpl implements ForumApi {
                 "  threads.tittle,\n" +
                 "  threads.votes\n" +
                 "FROM forums, threads, users\n" +
-                "WHERE lower(forums.slug) = lower(?)\n" +
+                "WHERE forums.slug_lower = ?\n" +
                 "      AND forums.id = threads.forum\n" +
                 "      AND users.id =  threads.author\n" +
                 "ORDER BY threads.created DESC\n" +
@@ -79,7 +87,7 @@ public class ForumApiImpl implements ForumApi {
                 "  threads.tittle,\n" +
                 "  threads.votes\n" +
                 "FROM forums, threads, users\n" +
-                "WHERE lower(forums.slug) = lower(?)\n" +
+                "WHERE forums.slug_lower = ?\n" +
                 "      AND forums.id = threads.forum\n" +
                 "      AND users.id =  threads.author\n" +
                 "      AND threads.created >= ?\n" +
@@ -96,7 +104,7 @@ public class ForumApiImpl implements ForumApi {
                     "  threads.tittle,\n" +
                     "  threads.votes\n" +
                     "FROM forums, threads, users\n" +
-                    "WHERE lower(forums.slug) = lower(?)\n" +
+                    "WHERE forums.slug_lower = ?\n" +
                     "      AND forums.id = threads.forum\n" +
                     "      AND users.id =  threads.author\n" +
                     "      AND threads.created <= ?\n" +
@@ -104,86 +112,22 @@ public class ForumApiImpl implements ForumApi {
                     "LIMIT ?";
 
     private static final String SEARCH_FORUM_USERS =
-        "SELECT * FROM ( \n" +
-            "SELECT DISTINCT * FROM ( \n" +
-            "  SELECT DISTINCT users.about, users.email, users.fullname, users.nickname \n" +
-            "  FROM forums, posts, users \n" +
-            "  WHERE \n" +
-            "    lower(forums.slug) = lower(?) AND \n" +
-            "    posts.forum = forums.id AND \n" +
-            "    users.id = posts.author \n" +
-            "  UNION \n" +
-            "  SELECT DISTINCT users.about, users.email, users.fullname, users.nickname \n" +
-            "  FROM forums, threads, users \n" +
-            "  WHERE \n" +
-            "    lower(forums.slug) = lower(?) AND \n" +
-            "    threads.forum = forums.id AND \n" +
-            "    users.id = threads.author \n" +
-            ") AS p\n" +
-            "ORDER BY nickname \n" +
-        ") AS p ORDER BY lower(nickname)::BYTEA LIMIT ?\n;";
+        "select * from users_in_forums where forum_id = ?" +
+                " ORDER BY nickname_lower_bytea LIMIT ?;";
 
     private static final String SEARCH_FORUM_USERS_USER_ID_LIMIT =
-        "SELECT * FROM (\n" +
-        "SELECT DISTINCT * FROM (\n" +
-        "  SELECT DISTINCT users.about, users.email, users.fullname, users.nickname\n" +
-        "  FROM forums, posts, users\n" +
-        "  WHERE\n" +
-        "    lower(forums.slug) = lower(?) AND\n" +
-        "    posts.forum = forums.id AND\n" +
-        "    users.id = posts.author\n" +
-        "  UNION\n" +
-        "  SELECT DISTINCT users.about, users.email, users.fullname, users.nickname\n" +
-        "  FROM forums, threads, users\n" +
-        "  WHERE\n" +
-        "    lower(forums.slug) = lower(?) AND\n" +
-        "    threads.forum = forums.id AND\n" +
-        "    users.id = threads.author\n" +
-        ") AS p\n" +
-        "WHERE lower(nickname)::BYTEA > lower(?)::BYTEA\n" +
-        "ORDER BY nickname\n" +
-        ") AS p ORDER BY lower(nickname)::BYTEA LIMIT ?;";
+            "select * from users_in_forums where forum_id = ?" +
+                    "AND nickname_lower_bytea > ?\n" +
+                    "ORDER BY nickname_lower_bytea LIMIT ?;";
 
     private static final String SEARCH_FORUM_USERS_DESC =
-            "SELECT * FROM ( \n" +
-            "SELECT DISTINCT * FROM ( \n" +
-            "  SELECT DISTINCT users.about, users.email, users.fullname, users.nickname \n" +
-            "  FROM forums, posts, users \n" +
-            "  WHERE \n" +
-            "    lower(forums.slug) = lower(?) AND \n" +
-            "    posts.forum = forums.id AND \n" +
-            "    users.id = posts.author \n" +
-            "  UNION \n" +
-            "  SELECT DISTINCT users.about, users.email, users.fullname, users.nickname \n" +
-            "  FROM forums, threads, users \n" +
-            "  WHERE \n" +
-            "    lower(forums.slug) = lower(?) AND \n" +
-            "    threads.forum = forums.id AND \n" +
-            "    users.id = threads.author \n" +
-            ") AS p\n" +
-            "ORDER BY nickname \n" +
-            ") AS p ORDER BY lower(nickname)::BYTEA DESC LIMIT ?;";
+            "select * from users_in_forums where forum_id = ?" +
+                    "ORDER BY nickname_lower_bytea DESC LIMIT ?;";
 
     private static final String SEARCH_FORUM_USERS_USER_ID_LIMIT_DESC =
-        "SELECT * FROM ( \n" +
-            "SELECT DISTINCT * FROM ( \n" +
-            "  SELECT DISTINCT users.about, users.email, users.fullname, users.nickname \n" +
-            "  FROM forums, posts, users \n" +
-            "  WHERE \n" +
-            "    lower(forums.slug) = lower(?) AND \n" +
-            "    posts.forum = forums.id AND \n" +
-            "    users.id = posts.author \n" +
-            "  UNION \n" +
-            "  SELECT DISTINCT users.about, users.email, users.fullname, users.nickname \n" +
-            "  FROM forums, threads, users \n" +
-            "  WHERE \n" +
-            "    lower(forums.slug) = lower(?) AND \n" +
-            "    threads.forum = forums.id AND \n" +
-            "    users.id = threads.author \n" +
-            ") AS p\n" +
-            "WHERE lower(nickname)::BYTEA < lower(?)::BYTEA\n" +
-            "ORDER BY nickname \n" +
-            ") AS p ORDER BY lower(nickname)::BYTEA DESC LIMIT ?;";
+            "select * from users_in_forums where forum_id = ?" +
+                    "AND nickname_lower_bytea < ?\n" +
+                    "ORDER BY nickname_lower_bytea DESC LIMIT ?;";
 
     private static final String SEARCH_TRHEAD_BY_FORUM_AND_THREAD_SLUGS =
             "SELECT users.nickname as author,\n" +
@@ -219,7 +163,7 @@ public class ForumApiImpl implements ForumApi {
             "      AND users.id =  threads.author;";
 
     private static final String UPDATE_FORUM_THREADS_COUNTER =
-            "UPDATE forums SET threads = ? WHERE lower(slug) = lower(?)";
+            "UPDATE forums SET threads = threads + 1 WHERE slug_lower = ?";
 
     @Override
     @ApiOperation(value = "Создание форума", notes = "Создание нового форума. ", response = Forum.class, tags={  })
@@ -232,9 +176,10 @@ public class ForumApiImpl implements ForumApi {
             consumes = { "application/json" },
             method = RequestMethod.POST)
     public ResponseEntity<?> forumCreate(@ApiParam(value = "Данные форума." ,required=true ) @RequestBody Forum forum) {
+        //log.info("Создание форума по слагу " + forum.getSlug());
         Forum forumSearchResult = null;
         try {
-            forumSearchResult = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] { forum.getSlug() }, new ForumMapper());
+            forumSearchResult = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] { forum.getSlug().toLowerCase() }, new ForumMapper());
             forumSearchResult.setUser(jdbcTemplate.queryForObject(SEARCH_USER_NICKNAME_BY_ID_QUERY, String.class, Long.parseLong(forumSearchResult.getUser())));
         }
         catch (Exception e) {
@@ -267,9 +212,10 @@ public class ForumApiImpl implements ForumApi {
             produces = { "application/json" },
             method = RequestMethod.GET)
     public ResponseEntity<?> forumGetOne(@ApiParam(value = "Идентификатор форума.",required=true ) @PathVariable("slug") String slug) {
+        //log.info("Получение информации о форуме по слагу " + slug);
         Forum forumSearchResult = null;
         try {
-            forumSearchResult = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] { slug }, new ForumMapper());
+            forumSearchResult = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] { slug.toLowerCase() }, new ForumMapper());
             forumSearchResult.setUser(jdbcTemplate.queryForObject(SEARCH_USER_NICKNAME_BY_ID_QUERY, String.class, Long.parseLong(forumSearchResult.getUser())));
         }
         catch (Exception e) {
@@ -290,14 +236,17 @@ public class ForumApiImpl implements ForumApi {
             produces = { "application/json" },
             method = RequestMethod.GET)
     public ResponseEntity<?> forumGetThreads(@ApiParam(value = "Идентификатор форума.",required=true ) @PathVariable("slug") String slug,
-    @Min(1) @Max(10000) @ApiParam(value = "Максимальное кол-во возвращаемых записей.", defaultValue = "100") @RequestParam(value = "limit", required = false, defaultValue="100") BigDecimal limit,
+    @Min(1) @Max(10000) @ApiParam(value = "Максимальное кол-во возвращаемых записей.", defaultValue = "100") @RequestParam(value = "limit", required = false, defaultValue="100") Integer limit,
     @ApiParam(value = "Дата создания ветви обсуждения, с которой будут выводиться записи (ветвь обсуждения с указанной датой попадает в результат выборки). ") @RequestParam(value = "since", required = false) String since,
     @ApiParam(value = "Флаг сортировки по убыванию. ") @RequestParam(value = "desc", required = false) Boolean desc) {
-
+/*        log.info("Список ветвей обсужления форума " + slug + "\n" +
+                "since" + (since == null ? "null" : since.toString()) + "\n" +
+                "desc: " + (desc == null ? "null" : desc.toString()) + "\n" +
+                "limit: " + limit.toString());*/
         ArrayList<Thread> threads = null;
 
         try {
-            jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] { slug }, new ForumMapper());
+            jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] { slug.toLowerCase() }, new ForumMapper());
         }
         catch (Exception e) {
             return new ResponseEntity<>(new Error("Форум отсутсвует в системе."), HttpStatus.NOT_FOUND);
@@ -306,15 +255,15 @@ public class ForumApiImpl implements ForumApi {
         try {
             if (since == null) {
              if (desc == null || desc == false) {
-                 threads = (ArrayList<Thread>)jdbcTemplate.query(SEARCH_FORUM_THREADS, new Object[] { slug, limit}, new ThreadsMapper());
+                 threads = (ArrayList<Thread>)jdbcTemplate.query(SEARCH_FORUM_THREADS, new Object[] { slug.toLowerCase(), limit}, new ThreadsMapper());
              } else {
-                 threads = (ArrayList<Thread>)jdbcTemplate.query(SEARCH_FORUM_THREADS_DESC, new Object[] { slug, limit}, new ThreadsMapper());
+                 threads = (ArrayList<Thread>)jdbcTemplate.query(SEARCH_FORUM_THREADS_DESC, new Object[] { slug.toLowerCase(), limit}, new ThreadsMapper());
              }
             } else {
                 if (desc == null || desc == false) {
-                    threads = (ArrayList<Thread>)jdbcTemplate.query(SEARCH_FORUM_THREADS_DATE_LIMIT, new Object[] { slug, new Timestamp(new DateTime(since).getMillis()), limit}, new ThreadsMapper());
+                    threads = (ArrayList<Thread>)jdbcTemplate.query(SEARCH_FORUM_THREADS_DATE_LIMIT, new Object[] { slug.toLowerCase(), new Timestamp(new DateTime(since).getMillis()), limit}, new ThreadsMapper());
                 } else {
-                    threads = (ArrayList<Thread>)jdbcTemplate.query(SEARCH_FORUM_THREADS_DATE_LIMIT_DESC, new Object[] { slug, new Timestamp(new DateTime(since).getMillis()), limit}, new ThreadsMapper());
+                    threads = (ArrayList<Thread>)jdbcTemplate.query(SEARCH_FORUM_THREADS_DATE_LIMIT_DESC, new Object[] { slug.toLowerCase(), new Timestamp(new DateTime(since).getMillis()), limit}, new ThreadsMapper());
                 }
             }
         }
@@ -334,13 +283,18 @@ public class ForumApiImpl implements ForumApi {
             produces = { "application/json" },
             method = RequestMethod.GET)
     public ResponseEntity<?> forumGetUsers(@ApiParam(value = "Идентификатор форума.",required=true ) @PathVariable("slug") String slug,
-    @Min(1) @Max(10000) @ApiParam(value = "Максимальное кол-во возвращаемых записей.", defaultValue = "100") @RequestParam(value = "limit", required = false, defaultValue="100") BigDecimal limit,
+    @Min(1) @Max(10000) @ApiParam(value = "Максимальное кол-во возвращаемых записей.", defaultValue = "100") @RequestParam(value = "limit", required = false, defaultValue="100") Integer limit,
     @ApiParam(value = "Идентификатор пользователя, с которого будут выводиться пользоватли (пользователь с данным идентификатором в результат не попадает). ") @RequestParam(value = "since", required = false) String since,
     @ApiParam(value = "Флаг сортировки по убыванию. ") @RequestParam(value = "desc", required = false) Boolean desc) {
-
+        /*log.info("Пользователи данного форума:\n" +
+                "slug: " + slug + "\n" +
+                "since" + (since == null ? "null" : since.toString()) + "\n" +
+                "desc: " + (desc == null ? "null" : desc.toString()) + "\n" +
+                "limit: " + limit.toString());*/
         ArrayList<User> users = null;
+        Forum forum = null;
         try{
-            Forum forum = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] {slug}, new ForumMapper());
+            forum = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] {slug.toLowerCase()}, new ForumMapper());
         }catch (Exception e) {
             //e.printStackTrace();
             Error error = new Error();
@@ -350,15 +304,15 @@ public class ForumApiImpl implements ForumApi {
         try {
             if (since == null) {
                 if (desc == null || desc == false) {
-                    users = (ArrayList<User>)jdbcTemplate.query(SEARCH_FORUM_USERS, new Object[] { slug, slug, limit}, new UsersMapper());
+                    users = (ArrayList<User>)jdbcTemplate.query(SEARCH_FORUM_USERS, new Object[] {forum.getId(), limit}, new UsersMapper());
                 } else {
-                    users = (ArrayList<User>)jdbcTemplate.query(SEARCH_FORUM_USERS_DESC, new Object[] { slug, slug, limit}, new UsersMapper());
+                    users = (ArrayList<User>)jdbcTemplate.query(SEARCH_FORUM_USERS_DESC, new Object[] {forum.getId(), limit}, new UsersMapper());
                 }
             } else {
                 if (desc == null || desc == false) {
-                    users = (ArrayList<User>)jdbcTemplate.query(SEARCH_FORUM_USERS_USER_ID_LIMIT, new Object[] { slug, slug, since, limit}, new UsersMapper());
+                    users = (ArrayList<User>)jdbcTemplate.query(SEARCH_FORUM_USERS_USER_ID_LIMIT, new Object[] {forum.getId(), since.toLowerCase().getBytes(), limit}, new UsersMapper());
                 } else {
-                    users = (ArrayList<User>)jdbcTemplate.query(SEARCH_FORUM_USERS_USER_ID_LIMIT_DESC, new Object[] { slug, slug, since, limit}, new UsersMapper());
+                    users = (ArrayList<User>)jdbcTemplate.query(SEARCH_FORUM_USERS_USER_ID_LIMIT_DESC, new Object[] {forum.getId(), since.toLowerCase().getBytes(), limit}, new UsersMapper());
                 }
             }
         }
@@ -370,6 +324,12 @@ public class ForumApiImpl implements ForumApi {
         }
 
         return new ResponseEntity<>(users, HttpStatus.OK);
+    }
+
+    private String searchForumUsers() {
+        String query = null;
+
+        return query;
     }
 
     @Override
@@ -384,6 +344,7 @@ public class ForumApiImpl implements ForumApi {
             method = RequestMethod.POST)
     public ResponseEntity<?> threadCreate(@ApiParam(value = "Идентификатор форума.",required=true ) @PathVariable("slug") String slug,
     @ApiParam(value = "Данные ветки обсуждения." ,required=true ) @RequestBody Thread thread) {
+        //log.info("Создание ветки");
         Forum forumSearchResult = null;
         try {
             forumSearchResult = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG, new Object[] { slug.toLowerCase() }, new ForumMapper());
@@ -420,7 +381,7 @@ public class ForumApiImpl implements ForumApi {
             //e.printStackTrace();
             return new ResponseEntity<>(new Error("Автор ветки или форум не найдены."), HttpStatus.NOT_FOUND);
         }
-        BigDecimal thread_id = new BigDecimal(0);
+        Integer thread_id = new Integer(0);
         Timestamp time = new Timestamp(DateTime.now().toDateTime(DateTimeZone.UTC).getMillis());
         if (thread.getCreated() != null) {
             time = new Timestamp((new DateTime(thread.getCreated()).toDateTime(DateTimeZone.UTC)).getMillis());
@@ -429,7 +390,7 @@ public class ForumApiImpl implements ForumApi {
             if (user != null) {
                 long forum_id = 0;
                 forum_id = jdbcTemplate.queryForObject(SEARCH_FORIM_ID_BY_SLUG, Long.class, slug.toLowerCase());
-                thread_id = jdbcTemplate.queryForObject(CREATE_THREAD_QUERY, BigDecimal.class, thread.getTitle(), user.getId(), forum_id, thread.getMessage(), thread.getSlug(), thread.getSlug() == null ? thread.getSlug() : thread.getSlug().toLowerCase(), time);
+                thread_id = jdbcTemplate.queryForObject(CREATE_THREAD_QUERY, Integer.class, thread.getTitle(), user.getId(), forum_id, thread.getMessage(), thread.getSlug(), thread.getSlug() == null ? thread.getSlug() : thread.getSlug().toLowerCase(), time);
             }
             else throw new Exception();
         }
@@ -438,9 +399,9 @@ public class ForumApiImpl implements ForumApi {
             return new ResponseEntity<>(e.toString(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
         thread.setForum(forumSearchResult.getSlug());
-        thread.setVotes(new BigDecimal(0));
+        thread.setVotes(new Integer(0));
         thread.setId(thread_id);
-        jdbcTemplate.update(UPDATE_FORUM_THREADS_COUNTER, forumSearchResult.getThreads().add(new BigDecimal(1)),forumSearchResult.getSlug());
+        jdbcTemplate.update(UPDATE_FORUM_THREADS_COUNTER,forumSearchResult.getSlug().toLowerCase());
         return new ResponseEntity<>(thread, HttpStatus.CREATED);
     }
 }

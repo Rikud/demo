@@ -12,10 +12,10 @@ public class PostsMapper implements RowMapper<Post> {
     @Override
     public Post mapRow(ResultSet resultSet, int i) throws SQLException {
         Post post = new Post();
-        post.setId(resultSet.getBigDecimal("id"));
-        post.setParent(resultSet.getBigDecimal("parent"));
+        post.setId(resultSet.getInt("id"));
+        post.setParent(resultSet.getInt("parent"));
         post.setAuthor(resultSet.getString("author"));
-        post.setThread(resultSet.getBigDecimal("thread"));
+        post.setThread(resultSet.getInt("thread"));
         post.setForum(resultSet.getString("forum"));
         post.setMessage(resultSet.getString("message"));
         post.setIsEdited(resultSet.getBoolean("isedited"));

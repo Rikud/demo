@@ -7,7 +7,6 @@ import io.swagger.annotations.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.util.List;
 @javax.annotation.Generated(value = "io.swagger.codegen.languages.SpringCodegen", date = "2018-03-25T22:28:04.198-07:00")
 
@@ -21,7 +20,7 @@ public interface PostApi {
     @RequestMapping(value = "/post/{id}/details",
         produces = { "application/json" }, 
         method = RequestMethod.GET)
-    ResponseEntity<?> postGetOne(@ApiParam(value = "Идентификатор сообщения.",required=true ) @PathVariable("id") BigDecimal id,
+    ResponseEntity<?> postGetOne(@ApiParam(value = "Идентификатор сообщения.",required=true ) @PathVariable("id") Integer id,
          @ApiParam(value = "Включение полной информации о соответвующем объекте сообщения. Если тип объекта не указан, то полная информация об этих объектах не передаётся. ", allowableValues = "USER, FORUM, THREAD") @RequestParam(value = "related", required = false) List<String> related);
 
 
@@ -33,7 +32,7 @@ public interface PostApi {
         produces = { "application/json" }, 
         consumes = { "application/json" },
         method = RequestMethod.POST)
-    ResponseEntity<?> postUpdate(@ApiParam(value = "Идентификатор сообщения.",required=true ) @PathVariable("id") BigDecimal id,
+    ResponseEntity<?> postUpdate(@ApiParam(value = "Идентификатор сообщения.",required=true ) @PathVariable("id") Integer id,
         @ApiParam(value = "Изменения сообщения." ,required=true ) @RequestBody PostUpdate post);
 
 }

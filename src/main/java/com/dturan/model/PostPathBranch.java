@@ -1,11 +1,9 @@
 package com.dturan.model;
 
-import java.math.BigDecimal;
-
 public class PostPathBranch {
 
     private String path = null;
-    private BigDecimal branch = null;
+    private Integer branch = null;
 
     public String getPath() {
         return path;
@@ -15,11 +13,11 @@ public class PostPathBranch {
         this.path = path;
     }
 
-    public BigDecimal getBranch() {
+    public Integer getBranch() {
         return branch;
     }
 
-    public void setBranch(BigDecimal branch) {
+    public void setBranch(Integer branch) {
         this.branch = branch;
     }
 

@@ -13,7 +13,7 @@ public class PostPathBranchMapper implements RowMapper<PostPathBranch> {
         PostPathBranch postPathBranch = new PostPathBranch();
         postPathBranch.setPath(resultSet.getString("path"));
         try {
-            postPathBranch.setBranch(resultSet.getBigDecimal("branch"));
+            postPathBranch.setBranch(resultSet.getInt("branch"));
         } catch (Exception e) {}
         return postPathBranch;
     }

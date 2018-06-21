@@ -6,7 +6,6 @@ import io.swagger.annotations.ApiModelProperty;
 
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
-import java.math.BigDecimal;
 import java.util.Objects;
 /**
  * Информация о форуме. 
@@ -17,7 +16,7 @@ import java.util.Objects;
 public class Forum   {
 
   @JsonProperty("id")
-  private BigDecimal id = null;
+  private Integer id = null;
 
   @JsonProperty("title")
   private String title = null;
@@ -29,21 +28,21 @@ public class Forum   {
   private String slug = null;
 
   @JsonProperty("posts")
-  private BigDecimal posts = null;
+  private Integer posts = null;
 
   @JsonProperty("threads")
-  private BigDecimal threads = null;
+  private Integer threads = null;
 
   public Forum title(String title) {
     this.title = title;
     return this;
   }
 
-  public BigDecimal getId() {
+  public Integer getId() {
     return id;
   }
 
-  public void setId(BigDecimal id) {
+  public void setId(Integer id) {
     this.id = id;
   }
 
@@ -100,7 +99,7 @@ public class Forum   {
     this.slug = slug;
   }
 
-  public Forum posts(BigDecimal posts) {
+  public Forum posts(Integer posts) {
     this.posts = posts;
     return this;
   }
@@ -110,15 +109,15 @@ public class Forum   {
    * @return posts
   **/
   @ApiModelProperty(example = "200000.0", readOnly = true, value = "Общее кол-во сообщений в данном форуме. ")
-  public BigDecimal getPosts() {
+  public Integer getPosts() {
     return posts;
   }
 
-  public void setPosts(BigDecimal posts) {
+  public void setPosts(Integer posts) {
     this.posts = posts;
   }
 
-  public Forum threads(BigDecimal threads) {
+  public Forum threads(Integer threads) {
     this.threads = threads;
     return this;
   }
@@ -128,11 +127,11 @@ public class Forum   {
    * @return threads
   **/
   @ApiModelProperty(example = "200.0", readOnly = true, value = "Общее кол-во ветвей обсуждения в данном форуме. ")
-  public BigDecimal getThreads() {
+  public Integer getThreads() {
     return threads;
   }
 
-  public void setThreads(BigDecimal threads) {
+  public void setThreads(Integer threads) {
     this.threads = threads;
   }
 

@@ -1,7 +1,9 @@
 package com.example.demo;
 
+import com.dturan.Mapper.ForumMapper;
 import com.dturan.Mapper.PostsMapper;
 import com.dturan.Mapper.ThreadsMapper;
+import com.dturan.Mapper.UsersMapper;
 import com.dturan.api.ThreadApi;
 import com.dturan.model.Error;
 import com.dturan.model.*;
@@ -19,15 +21,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
-import java.math.BigDecimal;
-import java.sql.*;
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/thread/")
@@ -37,9 +41,20 @@ public class ThreadApiImpl implements ThreadApi {
     @NotNull
     private JdbcTemplate jdbcTemplate;
 
+    private static Logger log = Logger.getLogger(ThreadApiImpl.class.getName());
+//    private Connection conn;
+
+//    @NotNull
+//    private ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, Integer>> branchs;
+
+    @NotNull
+    private Integer branch_count;
+
     @Autowired
     public ThreadApiImpl(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+//        branchs = new ConcurrentHashMap<Integer, ConcurrentHashMap<Integer, Integer>>();
+        /*branch_count = 0;*/
     }
 
     private static final String SEARCH_THREAD_ID_BY_SLUG = "SELECT ID FROM THREADS WHERE slug_lower = ?";
@@ -74,12 +89,12 @@ public class ThreadApiImpl implements ThreadApi {
 
     private static final String SEARCH_USER_ID_BY_NICKNAME = "SELECT ID FROM USERS WHERE nickname_lower = ?;";
     private static final String SEARCH_FORUM_ID_BY_SLUG = "SELECT ID FROM FORUMS WHERE slug_lower = ?;";
+    private static final String SEARCH_FORUM_BY_SLUG = "SELECT * FROM FORUMS WHERE slug_lower = ?;";
     private static final String UPDATE_THREAD =
             "UPDATE threads SET tittle = ?, message = ? WHERE id = ?";
     private static final String UPDATE_FORUM_POSTS_COUNTER =
             "UPDATE forums SET posts = posts + ? WHERE id = ?";
 
-    @Transactional
     @Override
     @ApiOperation(value = "Создание новых постов", notes = "Добавление новых постов в ветку обсуждения на форум. Все посты, созданные в рамках одного вызова данного метода должны иметь одинаковую дату создания (Post.Created). ", response = Posts.class, tags={  })
     @ApiResponses(value = {
@@ -102,7 +117,113 @@ public class ThreadApiImpl implements ThreadApi {
         } catch (Exception e5) {
             return new ResponseEntity<>(new Error("Ветка обсуждения отсутствует в базе данных."), HttpStatus.NOT_FOUND);
         }
-        BigDecimal forumResult = jdbcTemplate.queryForObject(SEARCH_FORUM_ID_BY_SLUG,BigDecimal.class,thread.getForum().toLowerCase());
+        //log.info("Создание новых постов");
+        Forum forumResult = jdbcTemplate.queryForObject(SEARCH_FORUM_BY_SLUG,new Object[]{thread.getForum().toLowerCase()}, new ForumMapper());
+        /*Connection conn = null;
+        PreparedStatement createPost = null;
+        try {
+            conn = jdbcTemplate.getDataSource().getConnection();
+            conn.setAutoCommit(false);
+            try {
+                createPost = conn.prepareStatement("INSERT INTO POSTS (id, parent, author, thread, forum, message, created, branch_id)\n" +
+                        "  VALUES (?, ?, ?, ?, ?, ?, ?, ?);");
+                for (int i = 0; i < posts.size(); ++i) {
+                    Post post = posts.get(i);
+                    post.setThread(thread.getId());
+                    post.setForum(thread.getForum());
+                    if (post.getCreated() == null) {
+                        post.setCreated(now);
+                    }
+                    Integer postid = null;
+                    postid = jdbcTemplate.queryForObject("SELECT nextval(pg_get_serial_sequence('posts', 'id'));", Integer.class);
+                    post.setId(postid);
+                    posts.set(i, post);
+                    Integer user_id = jdbcTemplate.queryForObject("SELECT search_user_id_by_nickname(?);", Integer.class, post.getAuthor().toLowerCase());
+                    *//*Integer branch = null;
+                    if (post.getParent() != null) {
+                        branch = jdbcTemplate.queryForObject("SELECT branch_id FROM posts WHERE id = ?", Integer.class, post.getParent());
+                    } else {
+                        branch = post.getId();
+                    }*//*
+                    createPost.setInteger(1, postid);
+                    createPost.setInteger(2, post.getParent() == null ? new Integer(0) : posts.get(i).getParent());
+                    createPost.setInteger(3, user_id);
+                    createPost.setInteger(4, thread.getId());
+                    createPost.setInteger(5, forumResult );
+                    createPost.setString(6, post.getMessage());
+                    createPost.setTimestamp(7, new Timestamp(new DateTime(post.getCreated()).getMillis()));
+                    createPost.setInteger(8, new Integer(0));
+                    createPost.addBatch();
+                }
+                createPost.executeBatch();
+                conn.commit();
+            }
+            catch (Exception ex) {
+//                conn.rollback();
+                throw new DataRetrievalFailureException(ex.getLocalizedMessage());
+            }
+            finally {
+                if (createPost != null)
+                    createPost.close();
+                conn.setAutoCommit(true);
+            }
+        }
+        catch (SQLException ex) {
+            throw new DataRetrievalFailureException(ex.getLocalizedMessage());
+        }
+        finally {
+            try {
+                if (conn != null)
+                    conn.close();
+            }
+            catch (Exception e)
+            {
+                throw new DataRetrievalFailureException(e.getLocalizedMessage());
+            }
+        }*/
+
+        /*for (int i = 0; i < posts.size(); ++i) {
+            Post post = posts.get(i);
+            post.setThread(thread.getId());
+            post.setForum(thread.getForum());
+            if (post.getCreated() == null) {
+                post.setCreated(now);
+            }
+            Integer postid = null;
+            postid = jdbcTemplate.queryForObject("SELECT nextval(pg_get_serial_sequence('posts', 'id'));", Integer.class);
+            post.setId(postid);
+            posts.set(i, post);
+        }*/
+
+       /* jdbcTemplate.batchUpdate( "SELECT create_post(?, ?, ?, ?, ?, ?)", new BatchPreparedStatementSetter() {
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                ps.setInteger(1, posts.get(i).getParent() == null ? new Integer(0) : posts.get(i).getParent());
+                ps.setString(2, posts.get(i).getAuthor().toLowerCase());
+                ps.setInteger(3, thread.getId());
+            }
+
+            public int getBatchSize() {
+                return actors.size();
+            }
+        });*/
+
+        Connection conn = null;
+        try {
+            conn = jdbcTemplate.getDataSource().getConnection();
+            conn.setAutoCommit(false);
+        } catch (Exception e) {
+
+        }
+        CallableStatement callableStatement = null;
+
+        try {
+            conn.setAutoCommit(false);
+            callableStatement = conn.prepareCall("INSERT INTO " +
+                    "POSTS(id, parent, author, thread, forum, message, created) "  +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id;");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         for (int i = 0; i < posts.size(); ++i) {
             Post post = posts.get(i);
@@ -111,21 +232,67 @@ public class ThreadApiImpl implements ThreadApi {
             if (post.getCreated() == null) {
                 post.setCreated(now);
             }
-            BigDecimal postId = null;
+            Integer postid = null;
             try {
-                postId = jdbcTemplate.queryForObject("select create_post(?, ?, ?, ?, ?, ?)", BigDecimal.class,  post.getParent(), post.getAuthor().toLowerCase(), thread.getId(), forumResult, post.getMessage(), new Timestamp(new DateTime(post.getCreated()).getMillis()));
+                //Integer user_id = jdbcTemplate.queryForObject("SELECT search_user_id_by_nickname(?);", Integer.class, post.getAuthor().toLowerCase());
+                postid = jdbcTemplate.queryForObject("SELECT nextval(pg_get_serial_sequence('posts', 'id'));", Integer.class);
+                User author_id = jdbcTemplate.queryForObject("SELECT * FROM USERS where nickname_lower = ?", new Object[] {post.getAuthor().toLowerCase()}, new UsersMapper());
+                callableStatement.setInt(1, postid);
+                callableStatement.setInt(2, (post.getParent() == null ? new Integer(0) : post.getParent()));
+                callableStatement.setInt(3, author_id.getId());
+                callableStatement.setInt(4, thread.getId());
+                callableStatement.setInt(5, forumResult.getId());
+                callableStatement.setString(6, post.getMessage());
+                callableStatement.setTimestamp(7, new Timestamp(new DateTime(post.getCreated()).getMillis()));
+//                callableStatement.registerOutParameter(7, Types.NUMERIC);
+                /*postid = jdbcTemplate.queryForObject(
+                                "INSERT INTO " +
+                                "POSTS(id, parent, author, thread, forum, message, created)"  +
+                                "VALUES (?, ?, ?, ?, ?, ?) RETURNING id;", Integer.class,
+                                post.getParent() == null ? 0 : post.getParent(), user_id, thread.getId(), forumResult,
+                                "", new Timestamp(new DateTime(post.getCreated()).getMillis()));*/
+                /*callableStatement2.setInt(1, forumResult.getId());
+                callableStatement2.setInt(2, author_id.getId());
+                callableStatement2.setString(3, author_id.getAbout());
+                callableStatement2.setString(4, author_id.getEmail());
+                callableStatement2.setString(5, author_id.getFullname());
+                callableStatement2.setString(6, author_id.getNickname());
+                callableStatement2.setString(7, author_id.getNickname().toLowerCase());
+                callableStatement2.addBatch();*/
+                callableStatement.addBatch();
+                //TODO перенести вставку данных пользователя в тригер
+                jdbcTemplate.update("INSERT INTO USERS_IN_FORUMS (forum_id, user_id, about, email, fullname, nickname, nickname_lower_bytea)\n" +
+                        "  VALUES (?, ?, ?, ?, ?, ?, (?)::bytea)\n" +
+                        "  ON CONFLICT (forum_id, user_id) DO NOTHING;", forumResult.getId(), author_id.getId(), author_id.getAbout(),
+                        author_id.getEmail(), author_id.getFullname(), author_id.getNickname(), author_id.getNickname().toLowerCase());
+//                postid = callableStatement.getInteger(7);
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            post.setId(postId);
+            post.setId(postid);
             posts.set(i, post);
         }
-
-        jdbcTemplate.update(UPDATE_FORUM_POSTS_COUNTER, new BigDecimal(posts.size()), forumResult);
+        try {
+            callableStatement.executeBatch();
+            if (callableStatement != null)
+                callableStatement.close();
+            conn.setAutoCommit(true);
+            if (conn != null)
+                conn.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+       /* try {
+            conn.commit();
+            conn.setAutoCommit(true);
+            conn.close();
+        } catch (Exception e ) {
+            e.printStackTrace();
+        }*/
+        jdbcTemplate.update(UPDATE_FORUM_POSTS_COUNTER, new Integer(posts.size()), forumResult.getId());
         return new ResponseEntity<>(posts, HttpStatus.CREATED);
     }
 
-    @Transactional
     @Override
     @ApiOperation(value = "Получение информации о ветке обсуждения", notes = "Получение информации о ветке обсуждения по его имени. ", response = Thread.class, tags={  })
     @ApiResponses(value = {
@@ -135,7 +302,7 @@ public class ThreadApiImpl implements ThreadApi {
         produces = { "application/json" },
         method = RequestMethod.GET)
     public ResponseEntity<?> threadGetOne(@ApiParam(value = "Идентификатор ветки обсуждения.",required=true ) @PathVariable("slugOrId") String slugOrId) {
-
+        //log.info("Получение информации о ветке обсуждения " + slugOrId);
         Thread thread = null;
         try {
             thread = this.searchThreadByIdOrSlug(slugOrId);
@@ -156,11 +323,16 @@ public class ThreadApiImpl implements ThreadApi {
             produces = { "application/json" },
             method = RequestMethod.GET)
     public ResponseEntity<?> threadGetPosts(@ApiParam(value = "Идентификатор ветки обсуждения.",required=true ) @PathVariable("slugOrId") String slugOrId,
-        @Min(1) @Max(10000) @ApiParam(value = "Максимальное кол-во возвращаемых записей.", defaultValue = "100") @RequestParam(value = "limit", required = false, defaultValue="100") BigDecimal limit,
-        @ApiParam(value = "Идентификатор поста, после которого будут выводиться записи (пост с данным идентификатором в результат не попадает). ") @RequestParam(value = "since", required = false) BigDecimal since,
+        @Min(1) @Max(10000) @ApiParam(value = "Максимальное кол-во возвращаемых записей.", defaultValue = "100") @RequestParam(value = "limit", required = false, defaultValue="100") Integer limit,
+        @ApiParam(value = "Идентификатор поста, после которого будут выводиться записи (пост с данным идентификатором в результат не попадает). ") @RequestParam(value = "since", required = false) Integer since,
         @ApiParam(value = "Вид сортировки:  * flat - по дате, комментарии выводятся простым списком в порядке создания;  * tree - древовидный, комментарии выводятся отсортированные в дереве    по N штук;  * parent_tree - древовидные с пагинацией по родительским (parent_tree),    на странице N родительских комментов и все комментарии прикрепленные    к ним, в древвидном отображение. Подробности: https://park.mail.ru/blog/topic/view/1191/ ", allowableValues = "FLAT, TREE, PARENT_TREE", defaultValue = "flat") @RequestParam(value = "sort", required = false, defaultValue="flat") String sort,
         @ApiParam(value = "Флаг сортировки по убыванию. ") @RequestParam(value = "desc", required = false) Boolean desc) {
-
+        /*log.info("Сообщения данной ветви обсуждения, параметры:\n" +
+                "slug: " + slugOrId + "\n" +
+                "since: " + (since == null ? "null" : since.toString()) + "\n" +
+                "limit: " + (limit == null ? "null" : limit.toString()) + "\n" +
+                "desc: " + (desc == null ? "null" : desc.toString()) + "\n" +
+                "sort: " + (sort != null ? "flat" : sort));*/
         ArrayList<Post> posts = null;
 
         Thread thread = null;
@@ -171,7 +343,7 @@ public class ThreadApiImpl implements ThreadApi {
             return new ResponseEntity<>(new Error("Ветка обсуждения отсутствует в форуме."), HttpStatus.NOT_FOUND);
         }
         if (since == null) {
-            since = new BigDecimal(0);
+            since = new Integer(0);
         }
         if (desc == null) {
             desc = false;
@@ -180,14 +352,26 @@ public class ThreadApiImpl implements ThreadApi {
 
         if (sort == null || sort.equals("flat")) {
             query = this.postsSearchQuery(limit, since, desc, thread);
+            if (since != 0) {
+                posts = (ArrayList<Post>)jdbcTemplate.query(query, new Object[]{thread.getId(), since, limit}, new PostsMapper());
+            } else {
+                posts = (ArrayList<Post>)jdbcTemplate.query(query, new Object[]{thread.getId(), limit}, new PostsMapper());
+            }
         } else if (sort.equals("tree")) {
             query = this.postsTreeSearchQuery(limit, since, desc, thread);
+            if (since != 0) {
+                posts = (ArrayList<Post>)jdbcTemplate.query(query, new Object[]{thread.getId(), since, limit}, new PostsMapper());
+            } else {
+                posts = (ArrayList<Post>)jdbcTemplate.query(query, new Object[]{thread.getId(), limit}, new PostsMapper());
+            }
         } else {
             query = this.postsTreeParentSearchQuery(limit, since, desc, thread);
+            if (since != 0) {
+                posts = (ArrayList<Post>)jdbcTemplate.query(query, new Object[]{thread.getId(), since, limit}, new PostsMapper());
+            } else {
+                posts = (ArrayList<Post>)jdbcTemplate.query(query, new Object[]{thread.getId(), limit}, new PostsMapper());
+            }
         }
-
-        posts = (ArrayList<Post>)jdbcTemplate.query(query, new Object[]{}, new PostsMapper());
-
         return new ResponseEntity<>(posts, HttpStatus.OK);
     }
 
@@ -202,6 +386,7 @@ public class ThreadApiImpl implements ThreadApi {
             method = RequestMethod.POST)
     public ResponseEntity<?> threadUpdate(@ApiParam(value = "Идентификатор ветки обсуждения.",required=true ) @PathVariable("slugOrId") String slugOrId,
         @ApiParam(value = "Данные ветки обсуждения." ,required=true ) @RequestBody ThreadUpdate thread) {
+        //log.info("Обновление ветки");
         Thread new_thread = null;
         try {
             new_thread = this.searchThreadByIdOrSlug(slugOrId);
@@ -230,23 +415,24 @@ public class ThreadApiImpl implements ThreadApi {
         method = RequestMethod.POST)
     public ResponseEntity<?> threadVote(@ApiParam(value = "Идентификатор ветки обсуждения.",required=true ) @PathVariable("slugOrId") String slugOrId,
         @ApiParam(value = "Информация о голосовании пользователя." ,required=true ) @RequestBody Vote vote) {
-
-        BigDecimal threadId = null;
+        //log.info("Проголосовать за ветвь обсуждения");
+        Integer threadId = null;
         try {
             threadId = searchThreadIdByIdOrSlug(slugOrId);
         } catch (Exception e) {
             //e.printStackTrace();
             return new ResponseEntity<>(new Error("Ветка обсуждения отсутствует в базе данных."), HttpStatus.NOT_FOUND);
         }
-        BigDecimal user_id = null;
+        Integer user_id = null;
         try {
-            user_id = jdbcTemplate.queryForObject(SEARCH_USER_ID_BY_NICKNAME, BigDecimal.class, vote.getNickname().toLowerCase());
+            user_id = jdbcTemplate.queryForObject(SEARCH_USER_ID_BY_NICKNAME, Integer.class, vote.getNickname().toLowerCase());
         } catch (Exception e) {
             //e.printStackTrace();
             return new ResponseEntity<>(new Error("\"Can't find user by nickname: " + vote.getNickname()), HttpStatus.NOT_FOUND);
         }
         Connection conn = null;
         CallableStatement callableStatement = null;
+        Integer test = null;
         try {
             conn = jdbcTemplate.getDataSource().getConnection();
             conn.setAutoCommit(false);
@@ -256,7 +442,7 @@ public class ThreadApiImpl implements ThreadApi {
                 callableStatement.setInt(2, threadId.intValue());
                 callableStatement.setInt(3, vote.getVoice().intValue());
                 callableStatement.execute();
-                conn.setAutoCommit(true);
+                conn.commit();
             } catch (SQLException sEx) {
                 conn.rollback();
                 throw new DataRetrievalFailureException(sEx.getLocalizedMessage());
@@ -276,7 +462,7 @@ public class ThreadApiImpl implements ThreadApi {
                 throw new DataRetrievalFailureException(e.getLocalizedMessage());
             }
         }
-        /*BigDecimal old_value = new BigDecimal(0);
+        /*Integer old_value = new Integer(0);
         Vote old_vote = null;
         try {
             old_vote = jdbcTemplate.queryForObject(SEARCH_VOTE_BY_THREAD_ID_AND_USER_ID, new Object[] {threadId, user_id}, new VoteMapper());
@@ -288,7 +474,7 @@ public class ThreadApiImpl implements ThreadApi {
             e.printStackTrace();
         }
         if (old_value != vote.getVoice()) {
-            BigDecimal newVotes = thread.getVotes().add(vote.getVoice().subtract(old_value));
+            Integer newVotes = thread.getVotes().add(vote.getVoice().subtract(old_value));
             jdbcTemplate.update(UPDATE_THREAD_VOTE_BY_THREAD_ID, newVotes, thread.getId());
             thread.setVotes(newVotes);
             return new ResponseEntity<>(thread, HttpStatus.OK);
@@ -300,263 +486,170 @@ public class ThreadApiImpl implements ThreadApi {
     private Thread searchThreadByIdOrSlug(String slugOrId) {
         Thread thread = null;
         if (StringUtils.isNumeric(slugOrId))
-            thread = jdbcTemplate.queryForObject(SEARCH_TRHEAD_BY_ID, new Object[] {new BigDecimal(slugOrId)}, new ThreadsMapper());
+            thread = jdbcTemplate.queryForObject(SEARCH_TRHEAD_BY_ID, new Object[] {new Integer(slugOrId)}, new ThreadsMapper());
         else
             thread = jdbcTemplate.queryForObject(SEARCH_TRHEAD_BY_SLUG, new Object[] {slugOrId.toLowerCase()}, new ThreadsMapper());
         return thread;
     }
 
-    private BigDecimal searchThreadIdByIdOrSlug(String slugOrId) {
+    private Integer searchThreadIdByIdOrSlug(String slugOrId) {
         if (StringUtils.isNumeric(slugOrId))
-            return new BigDecimal(slugOrId);
+            return new Integer(slugOrId);
         else
-            return jdbcTemplate.queryForObject(SEARCH_THREAD_ID_BY_SLUG, BigDecimal.class, slugOrId.toLowerCase());
+            return jdbcTemplate.queryForObject(SEARCH_THREAD_ID_BY_SLUG, Integer.class, slugOrId.toLowerCase());
     }
 
-    private String postsSearchQuery(BigDecimal limit,  BigDecimal since,  boolean desc, Thread thread) {
+    private String postsSearchQuery(Integer limit,  Integer since,  Boolean desc, Thread thread) {
         String query =
-            "SELECT posts.id, \n" +
-                "  posts.parent, \n" +
-                "  users.nickname as author, \n" +
-                "  posts.thread, \n" +
-                "  forums.slug as forum, \n" +
-                "  posts.message, \n" +
-                "  posts.isedited, \n" +
-                "  posts.created\n" +
-                "FROM forums, users, posts\n" +
-                "WHERE\n" +
-                "  users.id =  posts.author AND\n" +
-                "  forums.id = posts.forum AND\n" +
-                "  posts.thread = " + thread.getId().toString() + "\n";
-        if (since.compareTo(BigDecimal.ZERO) != 0) {
-            if (desc == false)
-                query += "  AND posts.id > " + since.toString() + "\n";
-            else
-                query += "  AND posts.id < " + since.toString() + "\n";
+                "SELECT posts.id,   \n" +
+                "  posts.parent,   \n" +
+                "  users.nickname AS author,   \n" +
+                "  posts.thread,   \n" +
+                "  forums.slug AS forum,   \n" +
+                "  posts.message,   \n" +
+                "  posts.isedited,   \n" +
+                "  posts.created,  \n" +
+                "  posts.branch_id,  \n" +
+                "  posts.path_to_root  \n" +
+                "FROM posts \n" +
+                "JOIN users ON posts.author = users.id \n" +
+                "JOIN forums ON posts.forum = forums.id \n" +
+                "WHERE thread = ?\n";
+        if (since != 0) {
+            if (desc == true) {
+                query += "and posts.id < ?\n";
+            } else {
+                query += "and posts.id > ?\n";
+            }
         }
-        if (desc) {
+        if (desc == true) {
             query += "ORDER BY posts.id DESC\n";
         } else {
             query += "ORDER BY posts.id\n";
         }
-        query += "LIMIT " + limit.toString() + " ;";
+        query += "LIMIT ?;";
         return query;
     }
 
-    private String postsTreeSearchQuery(BigDecimal limit, BigDecimal since, boolean desc, Thread thread) {
-        String query = "";
-        if (since.compareTo(BigDecimal.ZERO) != 0) {
-            if (desc == false) {
-                query =
-                "SELECT post.id, \n" +
-                "  post.parent, \n" +
-                "  users.nickname as author, \n" +
-                "  post.thread, \n" +
-                "  forums.slug as forum, \n" +
-                "  post.message, \n" +
-                "  post.isedited, \n" +
-                "  post.created,\n" +
-                "  post.path\n" +
-                "FROM forums, users,\n" +
-                    "(select *, ROW_NUMBER() OVER (ORDER BY path) as number from posts\n" +
-                    "where thread = " + thread.getId().toString() + "\n" +
-                    "ORDER BY path) as post\n" +
-                    "where \n" +
-                    "  users.id =  post.author AND\n" +
-                    "  forums.id = post.forum AND\n" +
-                    "  number > (\n" +
-                    "SELECT p.row_number\n" +
-                    "FROM (\n" +
-                    "SELECT\n" +
-                    "*,\n" +
-                    "ROW_NUMBER()\n" +
-                    "OVER (\n" +
-                    "ORDER BY path )\n" +
-                    "FROM posts\n" +
-                    "WHERE thread = " + thread.getId().toString() + "\n" +
-                    ") AS p\n" +
-                    "WHERE id >= " + since.toString() + " ORDER BY id LIMIT 1\n"+
-                    ") ORDER BY path\n";
-            }
-            else
-                query =
-                "SELECT post.id, \n" +
-                        "  post.parent, \n" +
-                        "  users.nickname as author, \n" +
-                        "  post.thread, \n" +
-                        "  forums.slug as forum, \n" +
-                        "  post.message, \n" +
-                        "  post.isedited, \n" +
-                        "  post.created,\n" +
-                        "  post.path\n" +
-                        "FROM forums, users,\n" +
-                    "(select *, ROW_NUMBER() OVER (ORDER BY path) as number from posts\n" +
-                    "where thread = " + thread.getId().toString() + "\n" +
-                    "ORDER BY path) as post\n" +
-                    "where \n" +
-                    "  users.id =  post.author AND\n" +
-                    "  forums.id = post.forum AND\n" +
-                    "  number < (\n" +
-                    "SELECT p.row_number\n" +
-                    "FROM (\n" +
-                    "SELECT\n" +
-                    "*,\n" +
-                    "ROW_NUMBER()\n" +
-                    "OVER (\n" +
-                    "ORDER BY path )\n" +
-                    "FROM posts\n" +
-                    "WHERE thread = " + thread.getId().toString() + "\n" +
-                    ") AS p\n" +
-                    "WHERE id >= " + since.toString() + " ORDER BY id LIMIT 1\n" +
-                    ") ORDER BY path DESC\n";
-        } else {
-            query =
-            "SELECT posts.id, \n" +
-                "  posts.parent, \n" +
-                "  users.nickname as author, \n" +
-                "  posts.thread, \n" +
-                "  forums.slug as forum, \n" +
-                "  posts.message, \n" +
-                "  posts.isedited, \n" +
-                "  posts.created,\n" +
-                "  posts.path\n" +
-                "FROM forums, users, posts\n" +
-                "WHERE\n" +
-                "  users.id =  posts.author AND\n" +
-                "  forums.id = posts.forum AND\n" +
-                "  posts.thread = " + thread.getId().toString() + "\n";
-            if (desc) {
-                query += "ORDER BY posts.path DESC\n";
+    private String postsTreeSearchQuery(Integer limit, Integer since, Boolean desc, Thread thread) {
+        String query = "SELECT posts.id,   \n" +
+                "  posts.parent,   \n" +
+                "  users.nickname AS author,   \n" +
+                "  posts.thread,   \n" +
+                "  forums.slug AS forum,   \n" +
+                "  posts.message,   \n" +
+                "  posts.isedited,   \n" +
+                "  posts.created,  \n" +
+                "  posts.branch_id,  \n" +
+                "  posts.path_to_root  \n" +
+                "FROM posts \n" +
+                "JOIN users ON posts.author = users.id \n" +
+                "JOIN forums ON posts.forum = forums.id \n" +
+                "  WHERE thread = ?\n";
+        if (since != 0) {
+            if (desc == false || desc == null) {
+                query += "AND posts.path_to_root > (select path_to_root from posts WHERE id = ?) \n";
             } else {
-                query += "ORDER BY posts.path\n";
+                query += "AND posts.path_to_root < (select path_to_root from posts WHERE id = ?)\n";
             }
         }
-        query += "LIMIT " + limit.toString() + " ;";
+        if (desc == false || desc == null) {
+            query += "ORDER BY posts.path_to_root\n";;
+        } else {
+            query += "ORDER BY posts.path_to_root DESC\n";
+        }
+        query += "LIMIT ?;";
         return query;
     }
 
-    private String postsTreeParentSearchQuery(BigDecimal limit, BigDecimal since, boolean desc, Thread thread) {
+    private String postsTreeParentSearchQuery(Integer limit, Integer since, Boolean desc, Thread thread) {
 
         String query = "";
-        if (since.compareTo(BigDecimal.ZERO) != 0) {
-            if (desc == false) {
+        if (since != 0) {
+            if (desc == false || desc == null) {
                 query =
-                "WITH thread_posts as (\n" +
-                    "SELECT posts.id,    \n" +
-                    "  posts.parent,    \n" +
-                    "  users.nickname as author,    \n" +
-                    "  posts.thread,    \n" +
-                    "  forums.slug as forum,    \n" +
-                    "  posts.message,    \n" +
-                    "  posts.isedited,    \n" +
-                    "  posts.created,   \n" +
-                    "  posts.path, \n" +
-                    "  posts.branch, \n" +
-                    "  ROW_NUMBER() OVER (ORDER BY path)\n" +
-                    "FROM forums, users, posts   \n" +
-                    "WHERE   \n" +
-                    "  users.id =  posts.author AND   \n" +
-                    "  forums.id = posts.forum AND   \n" +
-                    "  posts.thread = " + thread.getId().toString() + "\n" +
-                ")\n" +
-                "SELECT * from thread_posts\n" +
-                "WHERE branch IN (\n" +
-                "  SELECT branch FROM (\n" +
-                "     SELECT thread_posts.* from thread_posts,\n" +
-                "       (\n" +
-                "         SELECT * FROM thread_posts\n" +
-                "         WHERE id >= " + since.toString() + "\n" +
-                "         ORDER BY id LIMIT 1\n" +
-                "       ) as p\n" +
-                "     WHERE thread_posts.row_number > p.row_number\n" +
-                "   ) as p GROUP BY branch limit " + limit.toString() + "\n" +
-                ");";
-            }
-            else
-                query =
-                "WITH thread_posts as (\n" +
-                "    SELECT posts.id,\n" +
-                "      posts.parent,\n" +
-                "      users.nickname as author,\n" +
-                "      posts.thread,\n" +
-                "      forums.slug as forum,\n" +
-                "      posts.message,\n" +
-                "      posts.isedited,\n" +
-                "      posts.created,\n" +
-                "      posts.path,\n" +
-                "      posts.branch\n" +
-                "    FROM forums, users, posts\n" +
-                "    WHERE\n" +
-                "      users.id =  posts.author AND\n" +
-                "      forums.id = posts.forum AND\n" +
-                "      posts.thread =" + thread.getId().toString() + "\n" +
-                ")\n" +
-                "SELECT * FROM thread_posts\n" +
-                "WHERE branch in (\n" +
-                "    SELECT branch FROM thread_posts\n" +
-                "           WHERE branch < (\n" +
-                "    SELECT branch FROM thread_posts\n" +
-                "    WHERE id <= " + since.toString() + "\n" +
-                "    ORDER BY id DESC limit 1)\n" +
-                "    GROUP BY branch\n" +
-                "    ORDER BY branch DESC\n" +
-                "    LIMIT " + limit.toString() + "\n" +
-                ")\n" +
-                "ORDER BY branch DESC, path;";
-        } else {
-            if (desc) {
-                query +=
-                "SELECT posts.id,    \n" +
-                "  posts.parent,    \n" +
-                "  users.nickname as author,    \n" +
-                "  posts.thread,    \n" +
-                "  forums.slug as forum,    \n" +
-                "  posts.message,    \n" +
-                "  posts.isedited,    \n" +
-                "  posts.created,   \n" +
-                "  posts.path, \n" +
-                "  posts.branch \n" +
-                "FROM forums, users, posts   \n" +
-                "WHERE   \n" +
-                "  users.id =  posts.author AND   \n" +
-                "  forums.id = posts.forum AND   \n" +
-                "  posts.thread = " + thread.getId().toString() + " AND\n" +
-                "  posts.branch IN (\n" +
-                "    SELECT branch from ( \n" +
-                "                         SELECT branch, ROW_NUMBER() OVER (ORDER BY branch DESC)  FROM posts \n" +
-                "                         WHERE posts.thread = " + thread.getId().toString() + " AND\n" +
-                "                               parent ISNULL \n" +
-                "                       ) as p \n" +
-                "    WHERE row_number <= "+ limit.toString() + "\n" +
-                "  ) \n" +
-                "ORDER BY branch DESC, path;";
+                        "SELECT posts.id,   \n" +
+                        "  posts.parent,   \n" +
+                        "  users.nickname AS author,   \n" +
+                        "  posts.thread,   \n" +
+                        "  forums.slug AS forum,   \n" +
+                        "  posts.message,   \n" +
+                        "  posts.isedited,   \n" +
+                        "  posts.created,  \n" +
+                        "  posts.branch_id,  \n" +
+                        "  posts.path_to_root  \n" +
+                        "FROM posts \n" +
+                        "JOIN users ON posts.author = users.id \n" +
+                        "JOIN forums ON posts.forum = forums.id \n" +
+                        "WHERE posts.branch_id in (\n" +
+                        "  SELECT id FROM posts WHERE thread = ? AND parent = 0 AND id > (\n" +
+                        "    select branch_id from posts where id = ?\n" +
+                        "  ) ORDER BY id limit ?\n" +
+                        ")\n" +
+                        "ORDER BY posts.path_to_root;";
             } else {
-                query +=
-                "SELECT posts.id,    \n" +
-                "  posts.parent,    \n" +
-                "  users.nickname as author,    \n" +
-                "  posts.thread,    \n" +
-                "  forums.slug as forum,    \n" +
-                "  posts.message,    \n" +
-                "  posts.isedited,    \n" +
-                "  posts.created,   \n" +
-                "  posts.path, \n" +
-                "  posts.branch \n" +
-                "FROM forums, users, posts   \n" +
-                "WHERE   \n" +
-                "  users.id =  posts.author AND   \n" +
-                "  forums.id = posts.forum AND   \n" +
-                "  posts.thread = " + thread.getId().toString() + " AND\n" +
-                "  posts.branch <= (\n" +
-                "    SELECT branch from ( \n" +
-                "                         SELECT branch, ROW_NUMBER() OVER (ORDER BY branch)  FROM posts \n" +
-                "                         WHERE posts.thread = " + thread.getId().toString() + " AND\n" +
-                "                               parent ISNULL \n" +
-                "                       ) as p \n" +
-                "    WHERE row_number <= "+ limit.toString() + "\n" +
-                "    ORDER BY row_number DESC LIMIT 1\n" +
-                "  ) \n" +
-                "ORDER BY path;";
+                query =
+                        "SELECT posts.id,   \n" +
+                        "  posts.parent,   \n" +
+                        "  users.nickname AS author,   \n" +
+                        "  posts.thread,   \n" +
+                        "  forums.slug AS forum,   \n" +
+                        "  posts.message,   \n" +
+                        "  posts.isedited,   \n" +
+                        "  posts.created,  \n" +
+                        "  posts.branch_id,  \n" +
+                        "  posts.path_to_root  \n" +
+                        "FROM posts \n" +
+                        "JOIN users ON posts.author = users.id \n" +
+                        "JOIN forums ON posts.forum = forums.id \n" +
+                        "WHERE posts.branch_id in (\n" +
+                        "  SELECT id FROM posts WHERE thread = ? AND parent = 0 AND id < (\n" +
+                        "    select branch_id from posts where id = ?\n" +
+                        "  ) ORDER BY id DESC limit ?\n" +
+                        ")\n" +
+                        "ORDER BY posts.branch_id DESC, posts.path_to_root;";
+            }
+        } else {
+            if (desc == false || desc == null) {
+                query =
+                        "SELECT posts.id,   \n" +
+                        "  posts.parent,   \n" +
+                        "  users.nickname AS author,   \n" +
+                        "  posts.thread,   \n" +
+                        "  forums.slug AS forum,   \n" +
+                        "  posts.message,   \n" +
+                        "  posts.isedited,   \n" +
+                        "  posts.created,  \n" +
+                        "  posts.branch_id,  \n" +
+                        "  posts.path_to_root  \n" +
+                        "FROM posts \n" +
+                        "JOIN users ON posts.author = users.id \n" +
+                        "JOIN forums ON posts.forum = forums.id \n" +
+                        "WHERE posts.branch_id in (\n" +
+                        "  SELECT id FROM posts WHERE thread = ? AND parent = 0\n" +
+                        "  ORDER BY id limit ?\n" +
+                        ")\n" +
+                        "ORDER BY posts.path_to_root;";
+            } else {
+                query =
+                        "SELECT posts.id,   \n" +
+                        "  posts.parent,   \n" +
+                        "  users.nickname AS author,   \n" +
+                        "  posts.thread,   \n" +
+                        "  forums.slug AS forum,   \n" +
+                        "  posts.message,   \n" +
+                        "  posts.isedited,   \n" +
+                        "  posts.created,  \n" +
+                        "  posts.branch_id,  \n" +
+                        "  posts.path_to_root  \n" +
+                        "FROM posts \n" +
+                        "JOIN users ON posts.author = users.id \n" +
+                        "JOIN forums ON posts.forum = forums.id \n" +
+                        "WHERE posts.branch_id in (\n" +
+                        "  SELECT id FROM posts WHERE thread = ? AND parent = 0\n" +
+                        "  ORDER BY id DESC limit ?\n" +
+                        ")\n" +
+                        "ORDER BY posts.branch_id DESC, posts.path_to_root;";
             }
         }
         return query;

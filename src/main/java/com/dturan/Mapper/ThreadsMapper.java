@@ -14,11 +14,11 @@ public class ThreadsMapper implements RowMapper<Thread> {
         thread.setAuthor(resultSet.getString("author"));
         thread.setCreated(new DateTime(resultSet.getTimestamp("created").getTime()));
         thread.setForum(resultSet.getString("forum"));
-        thread.setId(resultSet.getBigDecimal("id"));
+        thread.setId(resultSet.getInt("id"));
         thread.setMessage(resultSet.getString("message"));
         thread.setSlug(resultSet.getString("slug"));
         thread.setTitle(resultSet.getString("tittle"));
-        thread.setVotes(resultSet.getBigDecimal("votes"));
+        thread.setVotes(resultSet.getInt("votes"));
         return thread;
     }
 }

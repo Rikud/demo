@@ -11,8 +11,8 @@ public class VoteMapper implements RowMapper<Vote> {
     @Override
     public Vote mapRow(ResultSet resultSet, int i) throws SQLException {
         Vote vote = new Vote();
-        vote.setVoice(resultSet.getBigDecimal("voice"));
-        vote.setId(resultSet.getBigDecimal("id"));
+        vote.setVoice(resultSet.getInt("voice"));
+        vote.setId(resultSet.getInt("id"));
         return vote;
     }
 }

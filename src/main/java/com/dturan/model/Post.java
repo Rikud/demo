@@ -6,7 +6,6 @@ import io.swagger.annotations.ApiModelProperty;
 import org.joda.time.DateTime;
 
 import javax.validation.constraints.NotNull;
-import java.math.BigDecimal;
 import java.util.Objects;
 /**
  * Сообщение внутри ветки обсуждения на форуме. 
@@ -16,10 +15,10 @@ import java.util.Objects;
 
 public class Post   {
   @JsonProperty("id")
-  private BigDecimal id = null;
+  private Integer id = null;
 
   @JsonProperty("parent")
-  private BigDecimal parent = null;
+  private Integer parent = null;
 
   @JsonProperty("author")
   private String author = null;
@@ -34,12 +33,12 @@ public class Post   {
   private String forum = null;
 
   @JsonProperty("thread")
-  private BigDecimal thread = null;
+  private Integer thread = null;
 
   @JsonProperty("created")
   private String created = null;
 
-  public Post id(BigDecimal id) {
+  public Post id(Integer id) {
     this.id = id;
     return this;
   }
@@ -49,15 +48,15 @@ public class Post   {
    * @return id
   **/
   @ApiModelProperty(readOnly = true, value = "Идентификатор данного сообщения.")
-  public BigDecimal getId() {
+  public Integer getId() {
     return id;
   }
 
-  public void setId(BigDecimal id) {
+  public void setId(Integer id) {
     this.id = id;
   }
 
-  public Post parent(BigDecimal parent) {
+  public Post parent(Integer parent) {
     this.parent = parent;
     return this;
   }
@@ -67,11 +66,11 @@ public class Post   {
    * @return parent
   **/
   @ApiModelProperty(value = "Идентификатор родительского сообщения (0 - корневое сообщение обсуждения). ")
-  public BigDecimal getParent() {
+  public Integer getParent() {
     return parent;
   }
 
-  public void setParent(BigDecimal parent) {
+  public void setParent(Integer parent) {
     this.parent = parent;
   }
 
@@ -149,7 +148,7 @@ public class Post   {
     this.forum = forum;
   }
 
-  public Post thread(BigDecimal thread) {
+  public Post thread(Integer thread) {
     this.thread = thread;
     return this;
   }
@@ -159,11 +158,11 @@ public class Post   {
    * @return thread
   **/
   @ApiModelProperty(readOnly = true, value = "Идентификатор ветви (id) обсуждения данного сообещния.")
-  public BigDecimal getThread() {
+  public Integer getThread() {
     return thread;
   }
 
-  public void setThread(BigDecimal thread) {
+  public void setThread(Integer thread) {
     this.thread = thread;
   }
 

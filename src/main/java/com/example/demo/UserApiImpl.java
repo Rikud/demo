@@ -15,14 +15,23 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/user")
 public class UserApiImpl implements UserApi {
 
-    @Autowired
+    @NotNull
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    public UserApiImpl(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    private static Logger log = Logger.getLogger(UserApiImpl.class.getName());
 
     private static final String SEARCH_USER_BY_NICKNAME_OR_EMAIL_QUERY = "SELECT * FROM USERS WHERE nickname_lower = ? OR lower(email) = ?";
     private static final String SEARCH_USER_BY_NICKNAME_QUERY = "SELECT * FROM USERS WHERE nickname_lower = ?";
@@ -45,6 +54,7 @@ public class UserApiImpl implements UserApi {
         method = RequestMethod.POST)
     public ResponseEntity<?> userCreate(@ApiParam(value = "Идентификатор пользователя.",required=true ) @PathVariable("nickname") String nickname,
     @ApiParam(value = "Данные пользовательского профиля." ,required=true ) @RequestBody User profile) {
+        //log.info("Создание нового пользователя");
         User user = null;
         ArrayList<User> users = null;
 
@@ -75,7 +85,7 @@ public class UserApiImpl implements UserApi {
         produces = { "application/json" },
         method = RequestMethod.GET)
     public ResponseEntity<?> userGetOne(@ApiParam(value = "Идентификатор пользователя.",required=true ) @PathVariable("nickname") String nickname) {
-
+        //log.info("Получение информации о пользователе");
         User user = null;
 
         try {
@@ -100,7 +110,7 @@ public class UserApiImpl implements UserApi {
         method = RequestMethod.POST)
     public ResponseEntity<?> userUpdate(@ApiParam(value = "Идентификатор пользователя.",required=true ) @PathVariable("nickname") String nickname,
     @ApiParam(value = "Изменения профиля пользователя." ,required=true ) @RequestBody UserUpdate profile) {
-
+        //log.info("Изменение данных о пользователе");
         User user = null;
         try {
             user = (User)this.userGetOne(nickname).getBody();
