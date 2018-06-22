@@ -38,6 +38,7 @@ CREATE INDEX IF NOT EXISTS threads_forum_index on THREADS(forum);
 CREATE INDEX IF NOT EXISTS threads_author_index on THREADS(author);
 CREATE INDEX IF NOT EXISTS threads_created_index on THREADS(created);
 CREATE INDEX IF NOT EXISTS threads_lower_slug_index on THREADS(slug_lower);
+CREATE INDEX IF NOT EXISTS threads_forum_created on THREADS(forum, created);
 
 CREATE TABLE IF NOT EXISTS USERS_IN_FORUMS (
   forum_id INTEGER REFERENCES FORUMS(id),

@@ -29,6 +29,7 @@ RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/$PGVER/main/pg_hba
 RUN echo "listen_addresses='*'" >> /etc/postgresql/9.5/main/postgresql.conf
 RUN echo "synchronous_commit = off" >> /etc/postgresql/9.5/main/postgresql.conf
 RUN echo "fsync = off" >> /etc/postgresql/9.5/main/postgresql.conf
+RUN echo "random_page_cost = 1.0" >> /etc/postgresql/9.5/main/postgresql.conf
 
 # Expose the PostgreSQL port
 EXPOSE 5432
