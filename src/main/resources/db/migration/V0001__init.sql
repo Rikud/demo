@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS USERS_IN_FORUMS (
 CREATE INDEX IF NOT EXISTS users_in_forums_forum_id_index on USERS_IN_FORUMS(forum_id);
 CREATE INDEX IF NOT EXISTS users_in_forums_user_id_index on USERS_IN_FORUMS(user_id);
 CREATE INDEX IF NOT EXISTS users_in_forums_nickname_lower_index on USERS_IN_FORUMS(nickname_lower_bytea);
+CREATE INDEX IF NOT EXISTS users_in_forums_forum_id_nickname_lower_bytea_index on USERS_IN_FORUMS(forum_id, nickname_lower_bytea);
 
 CREATE TABLE IF NOT EXISTS POSTS (
   id SERIAL NOT NULL PRIMARY KEY UNIQUE,
